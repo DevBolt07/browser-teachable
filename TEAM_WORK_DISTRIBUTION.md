@@ -32,7 +32,7 @@
 * `js/main.js`
 
 ### ⚙️ Functionality Explained Simply
-* **Full training loop (Adam, 25 epochs):** An "epoch" is one full read-through of all the training flashcards. This code loops through the images 25 times over, using a mathematical tool called 'Adam' to slowly adjust the AI's brain so it makes fewer mistakes.
+* **Full training loop (Adam, 25 epochs):** Think of an "epoch" as the AI studying a textbook from cover to cover one time. Doing 25 epochs means the AI reads the entire book 25 times to memorize and understand it better. "Adam" is like a smart tutor that helps the AI fix its mistakes faster after each read-through.
 * **`onEpochEnd` callback & `epochSnapshots`:** Every time the AI finishes one loop (epoch), this code saves a snapshot of the AI's brain weights (using `Float32Array`). It also updates the progress bar on the screen so the user knows it's working.
 * **`initReplayCard()`, `renderReplayBars()`:** This draws the cool "Replay" box on the screen where users can see the timeline of the training.
 * **`scrubToEpoch()`, `restoreFinalWeights()`:** These are the "Time Machine" functions. They let the user drag a slider to go back in time and load a past snapshot of the AI's brain. If they stop playing with the slider, the AI goes back to its smartest, final version.
@@ -91,14 +91,14 @@
 * `js/utils.js`
 
 ### ⚙️ Functionality Explained Simply
-* **`runInspector()`, `inspectorActivate()`, `inspectorDeactivate()`:** Controls the master switch to open up the complex 5-panel "Inspector Mode" where advanced users can see the raw numbers the AI is processing.
-* **`drawNormPanel()`, `drawEmbeddingPanel()`, `drawSoftmaxPanel()`:** These draw visual graphs! 
+* **`runInspector()`, `inspectorActivate()`, `inspectorDeactivate()` (in `js/visuals/inspector.js`):** Controls the master switch to open up the complex 5-panel "Inspector Mode" where advanced users can see the raw numbers the AI is processing.
+* **`drawNormPanel()`, `drawEmbeddingPanel()`, `drawSoftmaxPanel()` (in `js/visuals/inspector.js`):** These draw visual graphs! 
   * The Norm Panel shows normalisation heatmaps.
   * The Embedding Panel draws a jagged 1024-point line graph representing the raw, distilled MobileNet data.
   * Softmax Panel draws the final probability numbers.
-* **`buildSpatialModel()`, `drawGradCAMOverlay()`:** This is the magic "Attention Map." It builds a special sub-model to peek back into MobileNet to figure out *which pixels* in the image were the most important. It then overlays a glowing, semi-transparent heat-map over the camera feed so the user can see if the AI is looking at the dog's face, or just the background!
-* **`jetColor()`, `thermalColor()`:** These are math functions that translate boring numbers into cool, colorful gradients, going from blue (cold/unimportant) to red (hot/very important).
-* **`runInternals()`, `drawHeatmap()`, `describeActivation()`:** These handle the deeper AI internals, tracking how the data pushes through the different layers, and writes a description of whether the AI's focus is "sharp and focused" or "diffuse and confused."
+* **`buildSpatialModel()` (in `js/ml/mobilenet.js`), `drawGradCAMOverlay()` (in `js/visuals/inspector.js`):** This is the magic "Attention Map." It builds a special sub-model to peek back into MobileNet to figure out *which pixels* in the image were the most important. It then overlays a glowing, semi-transparent heat-map over the camera feed so the user can see if the AI is looking at the dog's face, or just the background!
+* **`jetColor()`, `thermalColor()` (in `js/utils.js`):** These are math functions that translate boring numbers into cool, colorful gradients, going from blue (cold/unimportant) to red (hot/very important).
+* **`runInternals()`, `drawHeatmap()`, `describeActivation()` (in `js/visuals/internals.js`):** These handle the deeper AI internals, tracking how the data pushes through the different layers, and writes a description of whether the AI's focus is "sharp and focused" or "diffuse and confused."
 
 ---
 
