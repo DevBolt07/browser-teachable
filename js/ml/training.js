@@ -99,6 +99,7 @@ export async function trainModel() {
     trainBtn.disabled      = false;
     predictImgBtn.disabled = false;
     startLiveBtn.disabled  = false;
+    document.getElementById('exportBtn').disabled = false;
     drawArchDiagram();
     updateDistancePanel();
     initReplayCard();

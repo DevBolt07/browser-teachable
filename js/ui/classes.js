@@ -13,6 +13,14 @@ import { captureThumbnail } from './webcam.js';
 import { setStatus, setPipe } from '../utils.js';
 
 // ── Class State Management ───────────────────────────────────────
+export function updateClassName(id, el) {
+  const cls = store.classes.find(c => c.id === id);
+  if (cls) {
+    cls.name = el.textContent.trim() || 'Untitled Tier';
+    renderPredBars();
+  }
+}
+window.updateClassName = updateClassName;
 
 export function addNewClass(name) {
   if (store.classes.length >= MAX_CLASSES) return;
@@ -68,7 +76,7 @@ export function renderClasses() {
     div.innerHTML = `
       <div class="class-row-top">
         <div class="cc-dot"></div>
-        <span class="cc-name" style="color:${p.text}">${cls.name}</span>
+        <span class="cc-name" style="color:${p.text}" contenteditable="true" onblur="window.updateClassName(${cls.id}, this)">${cls.name}</span>
         <span class="cc-count">Samples: <b id="cnt-${cls.id}">${cls.embeddings.length}</b></span>
         ${store.classes.length > 2 ? `<button class="btn btn-xs btn-red" onclick="window.deleteClass(${cls.id})" style="margin-left:4px;">✕</button>` : ''}
       </div>

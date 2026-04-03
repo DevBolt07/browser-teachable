@@ -13,6 +13,7 @@ import { addNewClass, clearClassSamples, deleteClass, addSampleFromImage } from 
 import { startWebcam, startCollection, stopCollection } from './ui/webcam.js';
 import { setReplaySource, stopReplayAuto, scrubToEpoch, restoreFinalWeights } from './ui/replay.js';
 import { toggleInternals } from './visuals/internals.js';
+import { exportModel, handleModelImport } from './ml/persistence.js';
 import { resetTrainingCharts, initTimelineChart } from './visuals/charts.js';
 import { drawArchDiagram } from './visuals/architecture.js';
 import { inspectorDeactivate, inspectorActivate } from './visuals/inspector.js';
@@ -213,6 +214,13 @@ document.addEventListener('DOMContentLoaded', () => {
       await scrubToEpoch(1);
     });
   }
+
+  // Model Persistence Handlers
+  const exportBtn = document.getElementById('exportBtn');
+  if (exportBtn) exportBtn.addEventListener('click', exportModel);
+  
+  const importFiles = document.getElementById('importFiles');
+  if (importFiles) importFiles.addEventListener('change', handleModelImport);
 
   // Final Init
   loadMobileNet();
