@@ -151,11 +151,14 @@
       <!-- Demo Credentials Reference -->
       <div class="demo-creds">
         <strong>Demo Login Profiles:</strong><br><br>
-        <div>Data Scientist (Admin Lab)</div>
+        <div style="color: #2563eb;">🛡️ Data Scientist (Admin Lab)</div>
         <div style="margin-bottom: 12px;">User: <span>admin</span> | Pass: <span>admin</span></div>
         
-        <div>Claims Surveyor (Agent UI)</div>
-        <div>User: <span>agent</span> | Pass: <span>agent</span></div>
+        <div style="color: #10b981;">📷 Claims Surveyor (Agent UI)</div>
+        <div style="margin-bottom: 12px;">User: <span>agent</span> | Pass: <span>agent</span></div>
+
+        <div style="color: #f59e0b;">👤 Customer (Self-Inspect)</div>
+        <div>User: <span>customer</span> | Pass: <span>customer</span></div>
       </div>
     </div>
   </div>
@@ -172,8 +175,12 @@
       } 
       else if (u === 'agent' && p === 'agent') {
         err.style.display = 'none';
-        window.location.href = 'agent.html'; // Navigates to the Surveyor Dashboard (will build next)
+        window.location.href = 'agent.html'; // Navigates to the Surveyor Dashboard
       } 
+      else if (u === 'customer' && p === 'customer') {
+        err.style.display = 'none';
+        window.location.href = 'customer-link.html'; // Navigates to the Customer Zero-Trust flow
+      }
       else {
         err.style.display = 'block';
         setTimeout(() => err.style.display = 'none', 3000); // hide after 3 sec

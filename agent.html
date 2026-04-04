@@ -5,9 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AutoClaim Agent Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
   <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --primary: #2563eb;
+      --green: #10b981;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #334155;
+    }
+
     body {
-      background: #f1f5f9; 
+      background: var(--bg); 
+      color: var(--text);
       min-height: 100vh; 
       padding: 0; 
       margin: 0;
@@ -15,34 +29,43 @@
     }
     
     .navbar {
-      background: #0f172a;
-      color: white;
+      background: #080c16;
+      border-bottom: 1px solid var(--border);
       padding: 16px 40px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .navbar h1 { margin: 0; font-size: 1.4rem; display: flex; align-items: center; gap: 8px; }
-    .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-weight: bold;}
+    .navbar h1 { margin: 0; font-size: 1.4rem; display: flex; align-items: center; gap: 8px; color: var(--text); }
+    .logout-btn { background: var(--red); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-weight: bold;}
     .logout-btn:hover { background: #dc2626; }
 
+    /* Tabs */
+    .tab-bar { display: flex; gap: 30px; padding: 20px 40px 0; max-width: 1200px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+    .tab-btn { background: transparent; color: var(--muted); border: none; font-size: 1.1rem; font-weight: 600; padding: 10px 0 15px; cursor: pointer; border-bottom: 3px solid transparent; position: relative; margin-bottom: -1px;}
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .badge { background: var(--red); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-left: 8px; position: relative; top: -2px; }
+
     .dashboard-container { padding: 40px; display: flex; gap: 30px; max-width: 1200px; margin: 0 auto; }
-    .ins-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); flex: 1; }
-    .ins-title { font-size: 0.9rem; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;}
+    .ins-card { background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); flex: 1; }
+    .ins-title { font-size: 0.9rem; font-weight: 700; color: var(--text); text-transform: uppercase; margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 10px;}
     
-    .ins-btn { background: #2563eb; color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 15px; transition: 0.2s; }
-    .ins-btn:hover { background: #1d4ed8; }
-    .ins-btn:disabled { opacity: 0.5; background: #94a3b8; cursor: not-allowed; }
+    .ins-btn { background: var(--primary); color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 15px; transition: 0.2s; }
+    .ins-btn:hover { filter: brightness(1.1); }
+    .ins-btn:disabled { opacity: 0.5; background: var(--border); cursor: not-allowed; }
+    .ins-btn-sec { background: transparent; border: 1px solid var(--border); color: var(--text); }
 
     .video-wrap { position: relative; width: 100%; border-radius: 8px; background: #000; overflow: hidden; }
     #agent-cam { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
     
-    #setup-box { background: #fffbeb; border: 1px solid #fde68a; padding: 20px; border-radius: 8px; margin: 0 auto 30px; color: #92400e; max-width: 1200px;}
-    input[type=file]::file-selector-button { background: #f59e0b; border: none; padding: 6px 12px; border-radius: 4px; color: white; cursor: pointer; font-weight: bold;}
+    #setup-box { background: rgba(245, 158, 11, 0.1); border: 1px solid var(--amber); padding: 20px; border-radius: 8px; margin: 40px auto 10px; color: var(--amber); max-width: 1120px;}
+    input[type=file]::file-selector-button { background: var(--amber); border: none; padding: 6px 12px; border-radius: 4px; color: #000; cursor: pointer; font-weight: bold;}
     
-    .pred-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600; color: #1e293b; }
-    .pred-bar-bg { width: 100%; height: 24px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 15px; position: relative;}
-    .pred-bar-fill { height: 100%; background: #3b82f6; transition: width 0.1s ease-out; }
+    .pred-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600; color: var(--text); }
+    .pred-bar-bg { width: 100%; height: 24px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 15px; position: relative;}
+    .pred-bar-fill { height: 100%; background: var(--primary); transition: width 0.1s ease-out; }
     
     .controls-row { display: flex; gap: 10px; margin-top: 15px; }
 
@@ -50,7 +73,7 @@
     @media print {
       body * { visibility: hidden; }
       #print-area, #print-area * { visibility: visible; }
-      #print-area { position: absolute; left: 0; top: 0; width: 100%; border:none; padding:20px; display: block !important; }
+      #print-area { position: absolute; left: 0; top: 0; width: 100%; background:white; color: black; border:none; padding:20px; display: block !important; font-family:'Segoe UI', sans-serif;}
       body { background: white; margin: 0; padding: 0; }
     }
   </style>
@@ -58,85 +81,240 @@
 <body>
 
   <nav class="navbar">
-    <h1>🛡️ ClaimLens AI <span>| Surveyor Live Link</span></h1>
+    <h1>🛡️ ClaimLens AI <span>| Surveyor Portal</span></h1>
     <div style="display: flex; align-items: center; gap: 20px;">
-      <span style="font-size: 0.9rem; color: #cbd5e1;">Logged in as: Surveyor</span>
+      <span style="font-size: 0.9rem; color: var(--muted);">Logged in as: Surveyor</span>
       <button class="logout-btn" onclick="window.location.href='login.html'">Logout</button>
     </div>
   </nav>
 
-  <div style="padding: 40px 40px 0;">
-    <div id="setup-box">
-      <strong>⚠️ Model Required:</strong> Load the exported AI model files (*.json, *.bin) to begin live field operations.<br><br>
-      <input type="file" id="loadModelFiles" multiple accept=".json,.bin">
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabbtn-live" onclick="switchTab('live-scan')">📷 Live Scan</button>
+    <button class="tab-btn" id="tabbtn-inbox" onclick="switchTab('inbox')">📥 Claim Inbox <span class="badge" id="inbox-badge">0</span></button>
+  </div>
+
+  <!-- ── TAB 1: LIVE SCAN ── -->
+  <div id="live-scan" class="tab-content active">
+    <div>
+      <div id="setup-box">
+        <strong>⚠️ Model Required:</strong> Load the exported AI model files (*.json, *.bin) to begin live field operations.<br><br>
+        <input type="file" id="loadModelFiles" multiple accept=".json,.bin">
+      </div>
+    </div>
+
+    <div class="dashboard-container">
+      <!-- LEFT: CAMERA -->
+      <div class="ins-card">
+        <div class="ins-title">📷 Field Camera</div>
+        <div class="video-wrap">
+          <video id="agent-cam" autoplay playsinline muted></video>
+          <img id="freeze-preview" style="display:none; width:100%; aspect-ratio:4/3; object-fit:cover; background:#000; border-radius:8px;">
+        </div>
+        <button class="ins-btn ins-btn-sec" id="start-cam-btn">Turn On Camera</button>
+      </div>
+
+      <!-- RIGHT: AI LIVE ANALYSIS -->
+      <div class="ins-card">
+        <div class="ins-title">🎯 AI Risk Analysis</div>
+        
+        <div id="status-text" style="color: var(--muted); font-size: 0.9rem; margin-bottom: 20px;">
+          Start camera and load model to begin prediction.
+        </div>
+
+        <div id="prediction-bars"></div>
+
+        <div class="controls-row">
+          <button class="ins-btn" id="live-btn" disabled style="background:var(--green);">▶ Start Live Analysis</button>
+          <button class="ins-btn" id="stop-btn" style="background:var(--red); display:none;">⏹ Stop Stream</button>
+        </div>
+        <button class="ins-btn ins-btn-sec" border="1px solid var(--border)" id="capture-btn" disabled style="margin-top: 10px;">📸 Capture &amp; Freeze Frame</button>
+
+        <!-- Post-Capture Workflow -->
+        <button class="ins-btn" id="report-btn" style="display:none; background:#8b5cf6; margin-top: 10px;">📄 Generate Claim Report (PDF)</button>
+        <button class="ins-btn ins-btn-sec" id="resume-btn" style="display:none; margin-top: 10px;">🔄 Discard &amp; Resume Stream</button>
+      </div>
     </div>
   </div>
 
-  <div class="dashboard-container">
-    <!-- LEFT: CAMERA -->
-    <div class="ins-card">
-      <div class="ins-title">📷 Field Camera</div>
-      <div class="video-wrap">
-        <video id="agent-cam" autoplay playsinline muted></video>
-        <img id="freeze-preview" style="display:none; width:100%; aspect-ratio:4/3; object-fit:cover; background:#000; border-radius:8px;">
-      </div>
-      <button class="ins-btn" id="start-cam-btn" style="background:#f8fafc; color:#0f172a; border: 1px solid #cbd5e1;">Turn On Camera</button>
-    </div>
-
-    <!-- RIGHT: AI LIVE ANALYSIS -->
-    <div class="ins-card">
-      <div class="ins-title">🎯 AI Risk Analysis</div>
-      
-      <div id="status-text" style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">
-        Start camera and load model to begin prediction.
-      </div>
-
-      <div id="prediction-bars"></div>
-
-      <div class="controls-row">
-        <button class="ins-btn" id="live-btn" disabled style="background:#10b981;">▶ Start Live Analysis</button>
-        <button class="ins-btn" id="stop-btn" style="background:#ef4444; display:none;">⏹ Stop Stream</button>
-      </div>
-      <button class="ins-btn" id="capture-btn" disabled style="margin-top: 10px; background:#f8fafc; color:#1e293b; border:2px solid #e2e8f0;">📸 Capture &amp; Freeze Frame</button>
-
-      <!-- Post-Capture Workflow -->
-      <button class="ins-btn" id="report-btn" style="display:none; background:#8b5cf6; margin-top: 10px;">📄 Generate Claim Report (PDF)</button>
-      <button class="ins-btn" id="resume-btn" style="display:none; background:#f8fafc; color:#1e293b; border:2px solid #e2e8f0; margin-top: 10px;">🔄 Discard &amp; Resume Stream</button>
+  <!-- ── TAB 2: CLAIM INBOX ── -->
+  <div id="inbox" class="tab-content">
+    <div style="padding: 40px; max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px;" id="claims-container">
+      <!-- Claims populated dynamically here -->
     </div>
   </div>
+
+  <!-- Toast -->
+  <div id="toast" style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--green); color:white; padding:12px 24px; border-radius:8px; font-weight:bold; transition:all 0.3s; z-index:1000; opacity:0;"></div>
 
   <!-- PRINT ONLY AREA -->
-  <div id="print-area" style="display:none; font-family:'Segoe UI', sans-serif;">
+  <div id="print-area" style="display:none;">
     <div style="border-bottom: 3px solid #0f172a; padding-bottom: 10px; margin-bottom: 20px;">
         <h2 style="margin:0; color:#0f172a; font-size:24px;">🛡️ ClaimLens AI - Official Risk Report</h2>
-        <div id="report-date" style="color: #475569; font-size:14px; margin-top:6px;"></div>
+        <div id="print-date" style="color: #475569; font-size:14px; margin-top:6px;"></div>
     </div>
-    <div style="display: flex; gap: 30px;">
-        <div style="flex:1;">
-             <h3 style="color:#1e293b; margin-top:0; font-size:16px;">Evidence Snapshot</h3>
-             <img id="report-img" style="width:100%; max-width:350px; border-radius:4px; border:1px solid #cbd5e1;">
-        </div>
-        <div style="flex:1;">
-             <h3 style="color:#1e293b; margin-top:0; font-size:16px;">AI Risk Analysis Breakdown</h3>
-             <ul style="list-style:none; padding:0; margin:0;" id="report-stats"></ul>
-             <div style="margin-top:30px; padding:20px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px;">
-                 <strong style="display:block; margin-bottom:8px; color:#334155;">Final Algorithmic Outcome:</strong>
-                 <span id="report-outcome" style="color:#0f172a; font-weight:bold; font-size:18px;"></span>
-             </div>
-        </div>
-    </div>
+    
+    <div id="print-content"></div>
+
     <div style="margin-top: 60px; text-align: center; color:#94a3b8; font-size: 13px; border-top:1px solid #e2e8f0; padding-top:20px;">
        Auto-generated strictly for internal surveying workflow. Algorithm predictions act as guidance and require human surveyor authorization. ID: CLM-<script>document.write(Math.floor(Math.random()*90000)+10000)</script>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
   <script>
-    let myModel, myMetadata, myMobilenet;
-    let liveInterval = null;
-    let cameraStream = null;
+    // --- Tabs Logic ---
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      document.getElementById('tabbtn-' + (tabId === 'live-scan' ? 'live' : 'inbox')).classList.add('active');
+      document.getElementById(tabId).classList.add('active');
 
-    // --- 1. Load Model ---
+      if(tabId === 'inbox') renderClaims();
+    }
+
+    // --- Toast Logic ---
+    function showToast(msg, isError=false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.background = isError ? "var(--red)" : "var(--green)";
+      toast.style.transform = "translateX(-50%) translateY(0)";
+      toast.style.opacity = "1";
+      setTimeout(() => { toast.style.transform = "translateX(-50%) translateY(100px)"; toast.style.opacity = "0"; }, 3000);
+    }
+
+    // --- Claim Inbox Logic ---
+    function renderClaims() {
+      const claimsStr = localStorage.getItem('claimlens_claims');
+      const claims = claimsStr ? JSON.parse(claimsStr) : [];
+      const container = document.getElementById('claims-container');
+      
+      const pendingCount = claims.filter(c => c.status === 'pending').length;
+      document.getElementById('inbox-badge').textContent = pendingCount;
+      document.getElementById('inbox-badge').style.background = pendingCount > 0 ? "var(--red)" : "var(--muted)";
+      
+      if (claims.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:80px; color:var(--muted); background:var(--card); border:1px solid var(--border); border-radius:12px;">
+            <div style="font-size:48px; margin-bottom:15px;">📭</div>
+            <h2>No Pending Claims</h2>
+            <p>Customer self-inspections will automatically appear here.</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = claims.slice().reverse().map(c => renderClaimCard(c)).join('');
+    }
+
+    function renderClaimCard(c) {
+      let statusBadge = '';
+      let buttons = '';
+      
+      if (c.status === 'pending') {
+        statusBadge = `<span style="background:var(--border); color:white; padding:4px 10px; border-radius:12px; font-size:0.8rem;">Pending Review</span>`;
+        buttons = `
+          <button onclick="updateClaimStatus('${c.id}', 'approved')" style="background:var(--green); color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">✅ Approve</button>
+          <button onclick="promptReject('${c.id}')" style="background:var(--red); color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">❌ Reject</button>
+        `;
+      } else if (c.status === 'approved') {
+        statusBadge = `<span style="background:var(--green); color:white; padding:4px 10px; border-radius:12px; font-size:0.8rem;">Approved</span>`;
+        buttons = `<button onclick="forwardClaim('${c.id}')" style="background:var(--primary); color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">Forward to Underwriter ↗</button>`;
+      } else {
+        statusBadge = `<span style="background:var(--red); color:white; padding:4px 10px; border-radius:12px; font-size:0.8rem;">Rejected</span>`;
+      }
+
+      return `
+        <div class="ins-card" style="display:flex; gap:24px; align-items:flex-start;" id="claim-${c.id}">
+          <img src="${c.imageDataURL}" style="width:220px; border-radius:8px; border:1px solid var(--border);">
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <strong style="font-size:1.2rem; display:flex; align-items:center; gap:10px;">${c.id} ${statusBadge}</strong>
+              <div style="color:var(--muted); font-size:0.9rem;">⏱️ ${c.timestamp}</div>
+            </div>
+            <div style="color:var(--muted); font-size:0.9rem; margin-bottom:15px;">📍 ${c.gps}</div>
+            
+            <div style="background:rgba(0,0,0,0.2); padding:12px 16px; border-radius:8px; border:1px solid var(--border); margin-bottom:15px;">
+              <div style="font-size:0.8rem; color:var(--muted); text-transform:uppercase; margin-bottom:6px; letter-spacing:1px;">AI Assessment</div>
+              <div style="font-weight:bold; font-size:1.1rem; margin-bottom:8px; color:var(--primary);">${c.className} — ${(c.confidence*100).toFixed(1)}% Confidence</div>
+              <div style="width:100%; height:6px; background:var(--border); border-radius:3px; overflow:hidden;">
+                <div style="width:${(c.confidence*100)}%; height:100%; background:var(--green);"></div>
+              </div>
+            </div>
+            
+            ${c.note ? `<div style="color:var(--amber); font-size:0.9rem; background:rgba(245, 158, 11, 0.1); border:1px solid var(--amber); border-radius:6px; padding:10px; margin-bottom:15px;">📝 <strong>Rejection Note:</strong> ${c.note}</div>` : ''}
+            
+            <div style="display:flex; gap:10px;" id="action-wrapper-${c.id}">
+              ${buttons}
+              <button onclick="printInboxReport('${c.id}')" class="ins-btn-sec" style="padding:8px 16px; border-radius:6px; cursor:pointer;">📄 View Full Report</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    window.updateClaimStatus = function(id, st, note='') {
+      const claimsStr = localStorage.getItem('claimlens_claims');
+      if(!claimsStr) return;
+      let claims = JSON.parse(claimsStr);
+      let claim = claims.find(c => c.id === id);
+      if(claim) {
+        claim.status = st;
+        if(note) claim.note = note;
+        localStorage.setItem('claimlens_claims', JSON.stringify(claims));
+        document.getElementById(`claim-${id}`).outerHTML = renderClaimCard(claim);
+        const pendingCount = claims.filter(c => c.status === 'pending').length;
+        document.getElementById('inbox-badge').textContent = pendingCount;
+        document.getElementById('inbox-badge').style.background = pendingCount > 0 ? "var(--red)" : "var(--muted)";
+      }
+    };
+
+    window.promptReject = function(id) {
+      const wrap = document.getElementById(`action-wrapper-${id}`);
+      wrap.innerHTML = `
+        <input type="text" id="reject-note-${id}" placeholder="Reason for rejection..." style="padding:8px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:white; outline:none; flex:1;">
+        <button onclick="confirmReject('${id}')" style="background:var(--red); color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold;">Confirm Reject</button>
+        <button onclick="updateClaimStatus('${id}', 'pending')" style="background:transparent; color:white; border:1px solid var(--border); padding:8px 16px; border-radius:6px; cursor:pointer;">Cancel</button>
+      `;
+    };
+
+    window.confirmReject = function(id) {
+      const note = document.getElementById(`reject-note-${id}`).value;
+      updateClaimStatus(id, 'rejected', note);
+    };
+
+    window.forwardClaim = function(id) {
+      showToast(`Claim ${id} forwarded successfully to Admin Underwriter.`);
+    };
+
+    window.printInboxReport = function(id) {
+      const claims = JSON.parse(localStorage.getItem('claimlens_claims'));
+      const claim = claims.find(c => c.id === id);
+      document.getElementById('print-date').innerText = "Report Printed: " + new Date().toLocaleString();
+      document.getElementById('print-content').innerHTML = `
+        <div style="display: flex; gap: 30px;">
+            <div style="flex:1;">
+                 <h3 style="color:#1e293b; margin-top:0; font-size:16px;">Evidence Snapshot (Original)</h3>
+                 <img src="${claim.imageDataURL}" style="width:100%; border-radius:4px; border:1px solid #cbd5e1; margin-bottom:15px;">
+            </div>
+            <div style="flex:1;">
+                 <h3 style="color:#1e293b; margin-top:0; font-size:16px;">AI Heatmap Layer</h3>
+                 <img src="${claim.heatmapDataURL}" style="width:100%; border-radius:4px; border:1px solid #cbd5e1; margin-bottom:15px;">
+            </div>
+        </div>
+        <div style="padding:20px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; color:#1e293b;">
+            <strong style="display:block; margin-bottom:12px; color:#334155;">Claim Metadata:</strong>
+            <div style="margin-bottom:8px;"><strong>Claim ID:</strong> ${claim.id}</div>
+            <div style="margin-bottom:8px;"><strong>Captured:</strong> ${claim.timestamp}</div>
+            <div style="margin-bottom:8px;"><strong>Location:</strong> ${claim.gps}</div>
+            <div style="margin-bottom:8px;"><strong>System Status:</strong> ${claim.status.toUpperCase()}</div>
+            ${claim.note ? `<div style="margin-bottom:8px; color:#ef4444;"><strong>Note:</strong> ${claim.note}</div>` : ''}
+            <div style="margin-top:15px; font-size:16px;"><strong>Algorithm Classification:</strong> <span style="color:#2563eb;">${claim.className} (${(claim.confidence*100).toFixed(1)}%)</span></div>
+        </div>
+      `;
+      window.print();
+    };
+
+    // --- Live Scan Workflow (Existing) ---
     document.getElementById('loadModelFiles').addEventListener('change', async (e) => {
       const files = e.target.files;
       if (files.length < 3) return alert('Select all 3 files!');
@@ -150,20 +328,19 @@
       
       document.getElementById('setup-box').innerHTML = "⏳ Booting AI Engine...";
       
-      myMobilenet = await mobilenet.load(); // Uses full 1024 dimension
+      myMobilenet = await mobilenet.load(); 
       myModel = await tf.loadLayersModel(tf.io.browserFiles([jF, wF]));
       
       const reader = new FileReader();
       reader.onload = (ev) => {
          myMetadata = JSON.parse(ev.target.result);
-         document.getElementById('setup-box').style.display = 'none'; // Hide when done
+         document.getElementById('setup-box').style.display = 'none'; 
          checkReady();
          initEmptyBars();
       };
       reader.readAsText(mF);
     });
 
-    // --- 2. Camera Logic ---
     document.getElementById('start-cam-btn').addEventListener('click', async () => {
       try {
         cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -178,7 +355,7 @@
     function checkReady() {
        if(myModel && myMetadata && cameraStream) {
           document.getElementById('status-text').innerHTML = '✅ System ready. Start Live stream or capture frame.';
-          document.getElementById('status-text').style.color = '#10b981';
+          document.getElementById('status-text').style.color = 'var(--green)';
           document.getElementById('live-btn').disabled = false;
           document.getElementById('capture-btn').disabled = false;
        }
@@ -195,14 +372,11 @@
        });
     }
 
-    // --- 3. Pure Prediction Logic (Exact Mirror of Admin Lab) ---
     async function executePrediction(tfSourceNode) {
-        // We use EXACTLY the unified API call used in Admin Mode
         const activation = myMobilenet.infer(tfSourceNode, true);
         const predictions = myModel.predict(activation);
         const probArray = await predictions.data();
         
-        // Update UI Bars
         let maxProb = 0; let bestClass = "";
         for(let i=0; i<myMetadata.classes.length; i++){
             const cName = myMetadata.classes[i];
@@ -213,19 +387,16 @@
             document.getElementById('pct-'+cName).innerText = pctText;
             document.getElementById('bar-'+cName).style.width = pctText;
             
-            // Colorizing the winner
             if(probability > 0.6) {
-               document.getElementById('bar-'+cName).style.background = '#10b981'; // Green
+               document.getElementById('bar-'+cName).style.background = 'var(--green)';
             } else {
-               document.getElementById('bar-'+cName).style.background = '#3b82f6'; // Blue
+               document.getElementById('bar-'+cName).style.background = 'var(--primary)'; 
             }
         }
         
-        // Memory leak prevention
         activation.dispose(); predictions.dispose();
     }
 
-    // --- 4. Controls ---
     document.getElementById('live-btn').addEventListener('click', () => {
         document.getElementById('live-btn').style.display = 'none';
         document.getElementById('stop-btn').style.display = 'block';
@@ -249,14 +420,12 @@
     });
 
     document.getElementById('resume-btn').addEventListener('click', () => {
-        document.getElementById('live-btn').click(); // Auto-start the stream back
+        document.getElementById('live-btn').click(); 
     });
 
     document.getElementById('capture-btn').addEventListener('click', async () => {
-        // Stop stream
         if(liveInterval) { clearInterval(liveInterval); }
         
-        // Setup freeze frame visually
         const vid = document.getElementById('agent-cam');
         const cvs = document.createElement('canvas');
         cvs.width = vid.videoWidth; cvs.height = vid.videoHeight;
@@ -267,28 +436,41 @@
         fp.style.display = 'block';
         vid.style.display = 'none';
         
-        // Hide/Show correct buttons
         document.getElementById('live-btn').style.display = 'none';
         document.getElementById('stop-btn').style.display = 'none';
         document.getElementById('capture-btn').style.display = 'none';
         document.getElementById('resume-btn').style.display = 'block';
         document.getElementById('report-btn').style.display = 'block';
         
-        // Single final prediction loop to lock the weights on the raw canvas
         await executePrediction(cvs);
     });
     
     document.getElementById('report-btn').addEventListener('click', () => {
-        // Populate Print Area Data
-        document.getElementById('report-date').innerText = "Report Printed: " + new Date().toLocaleString();
-        document.getElementById('report-img').src = document.getElementById('freeze-preview').src;
+        document.getElementById('print-date').innerText = "Report Printed: " + new Date().toLocaleString();
         
-        // Hydrate from visible UI bars
+        // Build the legacy report view (Live Scan mode uses just 1 image)
+        document.getElementById('print-content').innerHTML = `
+          <div style="display: flex; gap: 30px;">
+              <div style="flex:1;">
+                   <h3 style="color:#1e293b; margin-top:0; font-size:16px;">Evidence Snapshot</h3>
+                   <img src="${document.getElementById('freeze-preview').src}" style="width:100%; border-radius:4px; border:1px solid #cbd5e1;">
+              </div>
+              <div style="flex:1;">
+                   <h3 style="color:#1e293b; margin-top:0; font-size:16px;">AI Risk Analysis Breakdown</h3>
+                   <ul style="list-style:none; padding:0; margin:0; color:#1e293b;" id="report-stats"></ul>
+                   <div style="margin-top:30px; padding:20px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px;">
+                       <strong style="display:block; margin-bottom:8px; color:#334155;">Final Algorithmic Outcome:</strong>
+                       <span id="report-outcome" style="color:#0f172a; font-weight:bold; font-size:18px;"></span>
+                   </div>
+              </div>
+          </div>
+        `;
+
         let bestScore = 0; let bestCls = "";
         let listHTML = "";
         myMetadata.classes.forEach(c => {
            const pct = document.getElementById('pct-'+c).innerText;
-           listHTML += `<li style="margin-bottom:8px; display:flex; justify-content:space-between; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">
+           listHTML += `<li style="margin-bottom:8px; display:flex; justify-content:space-between; border-bottom:1px solid #cbd5e1; padding-bottom:5px;">
                           <span style="color:#475569;">${c}</span>
                           <strong style="color:#0f172a;">${pct}</strong>
                         </li>`;
@@ -297,18 +479,19 @@
         });
         document.getElementById('report-stats').innerHTML = listHTML;
         
-        // Determine Output Outcome
         if(bestScore > 60) {
-           document.getElementById('report-outcome').innerText = `✅ Categorized confidently as "${bestCls}". Recommend immediate surveyor dispatch based on AI match.`;
+           document.getElementById('report-outcome').innerText = `✅ Categorized confidently as "${bestCls}". Recommend immediate surveyor dispatch.`;
            document.getElementById('report-outcome').style.color = "#10b981";
         } else {
-           document.getElementById('report-outcome').innerText = `⚠️ Low Confidence (${bestScore}%). Unable to safely auto-process claim. Recommend manual review.`;
+           document.getElementById('report-outcome').innerText = `⚠️ Low Confidence (${bestScore}%). Manual review required.`;
            document.getElementById('report-outcome').style.color = "#f59e0b";
         }
 
         window.print();
     });
 
+    // Initialize UI on load
+    renderClaims();
   </script>
 </body>
 </html>
