@@ -7,7 +7,7 @@ import { addNewClass } from '../ui/classes.js';
 export async function exportModel() {
   if (!store.classifier) return setStatus('No trained model found to export.', 'error');
   setStatus('💾 Preparing model files for export...', 'ready');
-  await store.classifier.save('downloads://claimlens-model');
+  await store.classifier.save('downloads://model');
   
   const metadata = {
     classes: store.classes.map(c => c.name),
@@ -18,7 +18,7 @@ export async function exportModel() {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(metadata));
   const a = document.createElement('a');
   a.setAttribute("href", dataStr);
-  a.setAttribute("download", "claimlens-metadata.json");
+  a.setAttribute("download", "metadata.json");
   document.body.appendChild(a);
   a.click();
   a.remove();

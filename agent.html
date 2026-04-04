@@ -122,6 +122,7 @@
         </div>
 
         <div id="prediction-bars"></div>
+        <div style="color:var(--muted); font-size:0.8rem; margin-top:10px; text-align:center;">💡 Tap any active class above to force an immediate manual capture of that specific damage</div>
 
         <div class="controls-row">
           <button class="ins-btn" id="live-btn" disabled style="background:var(--green);">▶ Start Live Analysis</button>
@@ -161,6 +162,12 @@
   </div>
 
   <script>
+    let myMobilenet = null;
+    let myModel = null;
+    let myMetadata = null;
+    let cameraStream = null;
+    let liveInterval = null;
+
     // --- Tabs Logic ---
     function switchTab(tabId) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -302,10 +309,13 @@
             </div>
         </div>
         <div style="padding:20px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; color:#1e293b;">
-            <strong style="display:block; margin-bottom:12px; color:#334155;">Claim Metadata:</strong>
+            <strong style="display:block; margin-bottom:12px; color:#334155;">Claim Metadata &amp; Forensics:</strong>
             <div style="margin-bottom:8px;"><strong>Claim ID:</strong> ${claim.id}</div>
             <div style="margin-bottom:8px;"><strong>Captured:</strong> ${claim.timestamp}</div>
             <div style="margin-bottom:8px;"><strong>Location:</strong> ${claim.gps}</div>
+            <div style="margin-bottom:8px;"><strong>Image Resolution:</strong> ${claim.resolution || 'N/A'}</div>
+            <div style="margin-bottom:8px; font-family:monospace; font-size:11px; display:inline-block; max-width:500px;"><strong>Device Signature:</strong> ${claim.device || 'N/A'}</div>
+            <div style="margin-bottom:8px; font-family:monospace; font-size:11px;"><strong>Forensic Hash (SHA-256):</strong> ${claim.hash || 'N/A'}</div>
             <div style="margin-bottom:8px;"><strong>System Status:</strong> ${claim.status.toUpperCase()}</div>
             ${claim.note ? `<div style="margin-bottom:8px; color:#ef4444;"><strong>Note:</strong> ${claim.note}</div>` : ''}
             <div style="margin-top:15px; font-size:16px;"><strong>Algorithm Classification:</strong> <span style="color:#2563eb;">${claim.className} (${(claim.confidence*100).toFixed(1)}%)</span></div>
@@ -366,8 +376,10 @@
        pb.innerHTML = '';
        myMetadata.classes.forEach(c => {
           pb.innerHTML += `
-             <div class="pred-row"><span>${c}</span><span id="pct-${c}">0%</span></div>
-             <div class="pred-bar-bg"><div class="pred-bar-fill" id="bar-${c}" style="width:0%"></div></div>
+             <div style="cursor:pointer;" onclick="forceAgentCapture('${c}')" title="Tap to capture frame and assign to this class">
+               <div class="pred-row"><span>${c}</span><span id="pct-${c}">0%</span></div>
+               <div class="pred-bar-bg"><div class="pred-bar-fill" id="bar-${c}" style="width:0%"></div></div>
+             </div>
           `;
        });
     }
@@ -423,8 +435,9 @@
         document.getElementById('live-btn').click(); 
     });
 
-    document.getElementById('capture-btn').addEventListener('click', async () => {
-        if(liveInterval) { clearInterval(liveInterval); }
+    window.forceAgentCapture = function(className) {
+        if(!liveInterval) return; // Ignore if live stream isn't active
+        clearInterval(liveInterval);
         
         const vid = document.getElementById('agent-cam');
         const cvs = document.createElement('canvas');
@@ -442,7 +455,25 @@
         document.getElementById('resume-btn').style.display = 'block';
         document.getElementById('report-btn').style.display = 'block';
         
-        await executePrediction(cvs);
+        // Force the clicked class to 100% logically across UI
+        myMetadata.classes.forEach(c => {
+           document.getElementById('pct-'+c).innerText = c === className ? "100.0%" : "0.0%";
+           document.getElementById('bar-'+c).style.width = c === className ? "100%" : "0%";
+           document.getElementById('bar-'+c).style.background = c === className ? "var(--amber)" : "var(--primary)";
+        });
+        showToast("📸 Locked scan for: " + className);
+    };
+
+    document.getElementById('capture-btn').addEventListener('click', () => {
+        if(!liveInterval) return;
+        // Generic capture: pick the current top class dynamically
+        let bestCls = "Manual Override";
+        let bestScore = -1;
+        myMetadata.classes.forEach(c => {
+           const val = parseFloat(document.getElementById('pct-'+c).innerText);
+           if (val > bestScore) { bestScore = val; bestCls = c; }
+        });
+        forceAgentCapture(bestCls);
     });
     
     document.getElementById('report-btn').addEventListener('click', () => {

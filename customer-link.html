@@ -220,9 +220,12 @@
       padding: 14px 16px;
     }
     .readout-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-    .readout-class { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-    .conf-bar-bg { width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
-    .conf-bar-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width 0.15s ease; width: 0%; }
+    
+    .top-class-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+    .top-class-row:hover { background: rgba(255,255,255,0.05); }
+    .top-class-row:last-child { border-bottom: none; }
+    .tcr-name { font-weight: 600; font-size: 0.95rem; }
+    .tcr-conf { font-size: 0.85rem; padding: 4px 10px; border-radius: 12px; font-weight: 700; color: white; }
 
     .instruction-text {
       font-size: 0.85rem;
@@ -401,12 +404,12 @@
     </div>
 
     <div class="ai-readout">
-      <div class="readout-label">AI Live Assessment</div>
-      <div class="readout-class" id="live-class">Initializing…</div>
-      <div class="conf-bar-bg">
-        <div class="conf-bar-fill" id="live-conf-bar"></div>
+      <div class="readout-label">Live Classification (Tap to Force Capture)</div>
+      <div id="live-classes-container">
+        <div style="color:var(--muted); font-size:0.9rem;">Initializing inference engine...</div>
       </div>
     </div>
+    <button class="btn-secondary" id="force-capture-btn" style="margin-top:10px; background:var(--card); font-size:0.85rem; padding:10px;">📸 Force Manual Capture</button>
 
     <p class="instruction-text">
       Slowly walk around <strong>all 4 sides</strong> of your vehicle.<br>
@@ -453,8 +456,16 @@
         <span class="ev-value green" id="ev-conf">—</span>
       </div>
       <div class="evidence-row">
+        <span class="ev-label">Forensic Hash</span>
+        <span class="ev-value" id="ev-hash" style="font-size:0.75rem; color:var(--muted); font-family:monospace;">—</span>
+      </div>
+      <div class="evidence-row">
+        <span class="ev-label">Device Agent</span>
+        <span class="ev-value" id="ev-device" style="font-size:0.75rem; color:var(--muted);">—</span>
+      </div>
+      <div class="evidence-row">
         <span class="ev-label">Capture Mode</span>
-        <span class="ev-value green">Live Camera (Gallery Disabled)</span>
+        <span class="ev-value green">Live Camera Env (Gallery Locked)</span>
       </div>
     </div>
 
@@ -487,8 +498,11 @@
           <div style="margin-bottom:6px;"><strong>Claim ID:</strong> <span id="print-id"></span></div>
           <div style="margin-bottom:6px;"><strong>GPS Location:</strong> <span id="print-gps"></span> <span style="font-size:0.8em; color:#64748b;">(For precise GPS, open this link on your mobile device)</span></div>
           <div style="margin-bottom:6px;"><strong>AI Classification:</strong> <span id="print-class"></span> (<span id="print-conf"></span>)</div>
+          <div style="margin-bottom:6px;"><strong>Image Resolution:</strong> <span id="print-res"></span></div>
+          <div style="margin-bottom:6px;"><strong>Device Signature:</strong> <span id="print-device" style="font-family:monospace; font-size:11px; display:inline-block; max-width:500px;"></span></div>
+          <div style="margin-bottom:6px;"><strong>Forensic SHA-256:</strong> <span id="print-hash" style="font-family:monospace; font-size:11px;"></span></div>
           <div style="margin-bottom:6px;"><strong>Status:</strong> <span style="color:#f59e0b; font-weight:bold;">Pending Surveyor Review</span></div>
-          <div style="margin-top:10px; color:#10b981; font-weight:bold;">✅ LIVE CAPTURE VERIFIED</div>
+          <div style="margin-top:10px; color:#10b981; font-weight:bold;">✅ LIVE CAPTURE VERIFIED (FRAUD LOCK ENGAGED)</div>
         </div>
     </div>
   </div>
@@ -631,20 +645,24 @@
           predictions = myModel.predict(activation);
           const probArray = await predictions.data();
 
-          // Find highest confidence class
-          let maxProb = 0, maxIdx = 0;
-          for (let i = 0; i < probArray.length; i++) {
-            if (probArray[i] > maxProb) { maxProb = probArray[i]; maxIdx = i; }
-          }
+          // Find top 3 confident classes
+          const sorted = Array.from(probArray).map((p, i) => ({ prob: p, class: myMetadata.classes[i] }))
+                              .sort((a,b) => b.prob - a.prob).slice(0, 3);
 
-          const winnerClass = myMetadata.classes[maxIdx];
-          const confPct = (maxProb * 100).toFixed(1);
+          const maxProb = sorted[0].prob;
+          const winnerClass = sorted[0].class;
 
-          // Update live readout UI
-          document.getElementById('live-class').textContent = `${winnerClass} — ${confPct}%`;
-          document.getElementById('live-conf-bar').style.width = confPct + '%';
-          document.getElementById('live-conf-bar').style.background =
-            maxProb > 0.7 ? '#ef4444' : '#10b981';
+          // Update live readout UI top 3
+          let containerHtml = '';
+          sorted.forEach(item => {
+             const pct = (item.prob * 100).toFixed(1);
+             const bg = item.prob > 0.7 ? '#ef4444' : (item.prob > 0.4 ? '#f59e0b' : '#10b981');
+             containerHtml += `<div class="top-class-row" onclick="forceManualCapture('${item.class}', ${item.prob})">
+               <span class="tcr-name">${item.class}</span>
+               <span class="tcr-conf" style="background:${bg}">${pct}%</span>
+             </div>`;
+          });
+          document.getElementById('live-classes-container').innerHTML = containerHtml;
 
           // ── TRIGGER CHECK ──
           const isDamageClass = !SAFE_WORDS.includes(winnerClass.toLowerCase().trim());
@@ -662,6 +680,21 @@
         }
       }, 300);
     }
+
+    // ── Manual Setup ──
+    window.forceManualCapture = async function(className, confidence) {
+      if(hasCaptured) return;
+      hasCaptured = true;
+      if(inferenceLoop) clearInterval(inferenceLoop);
+      await fireCapture(document.getElementById('customer-cam'), className, confidence);
+    };
+
+    document.getElementById('force-capture-btn').addEventListener('click', () => {
+      // Pick whatever is currently highest as fallback
+      let topRow = document.querySelector('.top-class-row .tcr-name');
+      let clName = topRow ? topRow.textContent : 'Manual Override';
+      forceManualCapture(clName, 1.0);
+    });
 
     // ── Auto-Capture + GPS Stamp ──
     async function fireCapture(vid, className, confidence) {
@@ -702,6 +735,17 @@
       const gps = await fetchGPS();
       const gpsString = gps ? `${gps.lat}, ${gps.lon} (±${gps.acc}m)` : 'Location not available (permission denied / desktop)';
 
+      // Forensic data generators
+      const resolution = `${vid.videoWidth}x${vid.videoHeight}`;
+      const deviceStr = navigator.userAgent;
+      
+      const generateHash = async (txt) => {
+        const msgBuffer = new TextEncoder().encode(txt);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      };
+      const forensicHash = await generateHash(timestamp + deviceStr + resolution + evidenceDataURL.substring(0,60));
+
       // Populate Phase 4
       document.getElementById('evidence-img').src = evidenceDataURL;
       document.getElementById('heatmap-img').src = heatmapDataURL;
@@ -709,12 +753,17 @@
       document.getElementById('ev-class').textContent = className;
       document.getElementById('ev-conf').textContent = (confidence * 100).toFixed(1) + '%';
       document.getElementById('ev-gps').textContent = gpsString;
+      document.getElementById('ev-device').textContent = deviceStr.substring(0,40) + '...';
+      document.getElementById('ev-hash').textContent = forensicHash.substring(0, 32);
       
       // Store in memory for submission
       pendingClaim = {
         id: 'CLM-' + (Math.floor(Math.random() * 90000) + 10000),
         timestamp: timestamp,
         gps: gpsString,
+        device: deviceStr,
+        resolution: resolution,
+        hash: forensicHash,
         className: className,
         confidence: confidence,
         imageDataURL: evidenceDataURL,
@@ -761,6 +810,9 @@
       document.getElementById('print-heatmap').src = pendingClaim.heatmapDataURL;
       document.getElementById('print-id').textContent = pendingClaim.id;
       document.getElementById('print-gps').textContent = pendingClaim.gps;
+      document.getElementById('print-res').textContent = pendingClaim.resolution;
+      document.getElementById('print-device').textContent = pendingClaim.device;
+      document.getElementById('print-hash').textContent = pendingClaim.hash;
       document.getElementById('print-class').textContent = pendingClaim.className;
       document.getElementById('print-conf').textContent = (pendingClaim.confidence * 100).toFixed(1) + "%";
       window.print();

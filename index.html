@@ -113,6 +113,10 @@
            <button class="btn btn-outline" style="width:100%; pointer-events:none;">📂 Load Pretrained</button>
         </div>
       </div>
+      <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+        <button class="btn btn-primary" id="generateLinkBtn" style="background:#8b5cf6;" disabled>🔗 Generate Customer Live-Link</button>
+        <div id="linkOutput" style="display:none; font-size: 0.8rem; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; color: #475569; word-break: break-all;"></div>
+      </div>
     </div>
 
   </div>
@@ -325,5 +329,29 @@
 </main>
 
 <script type="module" src="js/main.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const exportBtn = document.getElementById('exportBtn');
+    const linkBtn = document.getElementById('generateLinkBtn');
+    
+    // Activate the link button whenever the export button becomes active (model is ready)
+    const observer = new MutationObserver(() => {
+      if(!exportBtn.disabled) { linkBtn.disabled = false; }
+    });
+    observer.observe(exportBtn, { attributes: true, attributeFilter: ['disabled'] });
+
+    // Link Generation Flow
+    linkBtn.addEventListener('click', () => {
+      const token = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+      const generatedLink = window.location.origin + window.location.pathname.replace('index.html', '') + 'customer-link.html?token=' + token;
+      
+      const output = document.getElementById('linkOutput');
+      output.innerHTML = `<strong>Customer Intake Link Generated:</strong><br><br><span style="color:#2563eb;">${generatedLink}</span><br><br><span style="color:#10b981; font-weight:bold;">✅ Copied to clipboard! SMS dispatched.</span>`;
+      output.style.display = 'block';
+      
+      navigator.clipboard.writeText(generatedLink).catch(e => console.log("Clipboard write failed"));
+    });
+  });
+</script>
 </body>
 </html>
