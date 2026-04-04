@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ClaimLens AI — Vehicle Inspection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --primary: #2563eb;
+      --green: #10b981;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #334155;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    /* ── Phase Visibility ── */
+    .phase { display: none; width: 100%; max-width: 420px; }
+    .phase.active { display: flex; flex-direction: column; align-items: center; }
+
+    /* ── Phase 1: Welcome ── */
+    #phase-1 { text-align: center; gap: 24px; }
+    .shield-icon { font-size: 64px; line-height: 1; margin-bottom: 8px; }
+    .brand { font-size: 1.6rem; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
+    .brand span { color: var(--primary); }
+    .tagline { font-size: 0.95rem; color: var(--muted); max-width: 300px; line-height: 1.6; }
+    .trust-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      text-align: left;
+      width: 100%;
+    }
+    .trust-box h3 { font-size: 0.85rem; color: var(--green); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    .trust-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: 0.88rem; color: var(--muted); line-height: 1.5; }
+    .trust-row:last-child { margin-bottom: 0; }
+    .trust-row span:first-child { flex-shrink: 0; }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 16px 32px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s, transform 0.1s;
+      font-family: 'Inter', sans-serif;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 24px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      font-family: 'Inter', sans-serif;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--muted); color: var(--text); }
+
+    /* ── Phase 2: Loader ── */
+    #phase-2 { gap: 28px; text-align: center; }
+    .loader-title { font-size: 1.2rem; font-weight: 700; }
+    .loader-subtitle { color: var(--muted); font-size: 0.9rem; }
+
+    .spinner {
+      width: 60px; height: 60px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 3px;
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+
+    .step-list { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.88rem;
+      color: var(--muted);
+      transition: all 0.3s;
+    }
+    .step-item.done { color: var(--green); border-color: var(--green); }
+    .step-item.active { color: var(--text); border-color: var(--primary); }
+    .step-item.error { color: var(--red); border-color: var(--red); }
+    .step-icon { width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+
+    .error-card {
+      background: #1a0a0a;
+      border: 1px solid var(--red);
+      border-radius: 12px;
+      padding: 20px;
+      width: 100%;
+      text-align: left;
+    }
+    .error-card h3 { color: var(--red); font-size: 1rem; margin-bottom: 8px; }
+    .error-card p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+
+    /* ── Phase 3: Scanner ── */
+    #phase-3 { gap: 16px; }
+    .scanner-header { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+    .scanner-title { font-size: 1rem; font-weight: 700; }
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #3f0000;
+      color: var(--red);
+      border: 1px solid var(--red);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .live-dot {
+      width: 8px; height: 8px;
+      background: var(--red);
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    .video-wrap {
+      width: 100%;
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      aspect-ratio: 4/3;
+    }
+    #customer-cam {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform: scaleX(1); /* environment camera — no mirror */
+    }
+
+    /* Scanning Line */
+    .scan-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: var(--green);
+      box-shadow: 0 0 12px 3px rgba(16, 185, 129, 0.6);
+      animation: scanMove 2s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes scanMove {
+      0%   { top: 0%; }
+      100% { top: 100%; }
+    }
+
+    /* Corner brackets */
+    .corner { position: absolute; width: 28px; height: 28px; border-color: rgba(37, 99, 235, 0.8); border-style: solid; }
+    .corner.tl { top: 10px; left: 10px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+    .corner.tr { top: 10px; right: 10px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+    .corner.bl { bottom: 10px; left: 10px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+    .corner.br { bottom: 10px; right: 10px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+    .ai-readout {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .readout-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .readout-class { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+    .conf-bar-bg { width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .conf-bar-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width 0.15s ease; width: 0%; }
+
+    .instruction-text {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+      padding: 0 8px;
+    }
+    .instruction-text strong { color: var(--amber); }
+
+    /* ── Phase 4: Evidence Locked ── */
+    #phase-4 { gap: 20px; animation: fadeUp 0.4s ease both; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .evidence-header { text-align: center; }
+    .evidence-header h2 { font-size: 1.3rem; font-weight: 800; }
+    .evidence-header p { color: var(--muted); font-size: 0.88rem; margin-top: 4px; }
+
+    .verified-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+      border: 1px solid var(--green);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    #evidence-img {
+      width: 100%;
+      border-radius: 10px;
+      border: 2px solid var(--green);
+      display: block;
+    }
+
+    .evidence-card {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .evidence-card-title {
+      background: #0f2043;
+      padding: 10px 16px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary);
+      border-bottom: 1px solid var(--border);
+    }
+    .evidence-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+    }
+    .evidence-row:last-child { border-bottom: none; }
+    .ev-label { color: var(--muted); flex-shrink: 0; }
+    .ev-value { color: var(--text); font-weight: 600; text-align: right; word-break: break-all; }
+    .ev-value.green { color: var(--green); }
+
+    .btn-group { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--green);
+      color: white;
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 999;
+      text-align: center;
+      max-width: 340px;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- ── Phase 1: Welcome ── -->
+  <div class="phase active" id="phase-1">
+    <div class="shield-icon">🛡️</div>
+    <div>
+      <div class="brand">Claim<span>Lens</span> AI</div>
+    </div>
+    <p class="tagline">Your insurance company has requested a secure AI vehicle inspection. This will only take 60 seconds.</p>
+    <div class="trust-box">
+      <h3>🔒 Your Privacy is Protected</h3>
+      <div class="trust-row">
+        <span>📵</span>
+        <span>Photos are processed entirely on your phone. Nothing is uploaded to any server.</span>
+      </div>
+      <div class="trust-row">
+        <span>🚫</span>
+        <span>Photo uploads are disabled. Only your live camera is used — preventing any photo fraud.</span>
+      </div>
+      <div class="trust-row">
+        <span>📍</span>
+        <span>Optional GPS is used only to verify the inspection location for your claim report.</span>
+      </div>
+    </div>
+    <button class="btn-primary" id="begin-btn">Start Vehicle Inspection →</button>
+  </div>
+
+  <!-- ── Phase 2: Loader ── -->
+  <div class="phase" id="phase-2">
+    <div class="loader-title">Preparing Inspection System</div>
+    <div class="loader-subtitle">Please keep the app open…</div>
+    <div class="spinner" id="loader-spinner"></div>
+    <div class="progress-track" style="width:100%;">
+      <div class="progress-fill" id="progress-bar"></div>
+    </div>
+    <div class="step-list">
+      <div class="step-item" id="step-1">
+        <div class="step-icon">⬜</div>
+        <span>Connecting to AI Model Server</span>
+      </div>
+      <div class="step-item" id="step-2">
+        <div class="step-icon">⬜</div>
+        <span>Booting Neural Network Engine</span>
+      </div>
+      <div class="step-item" id="step-3">
+        <div class="step-icon">⬜</div>
+        <span>Requesting Camera Access</span>
+      </div>
+    </div>
+    <!-- Error state — hidden initially -->
+    <div class="error-card" id="error-card" style="display:none;">
+      <h3>⚠️ Initialization Failed</h3>
+      <p id="error-msg">An error occurred. Please check your internet connection and try again.</p>
+    </div>
+    <button class="btn-secondary" id="retry-btn" style="display:none;" onclick="location.reload()">↺ Retry</button>
+  </div>
+
+  <!-- ── Phase 3: Scanner ── -->
+  <div class="phase" id="phase-3">
+    <div class="scanner-header">
+      <div class="scanner-title">🔍 Scanning Vehicle</div>
+      <div class="live-badge"><div class="live-dot"></div> LIVE AI</div>
+    </div>
+
+    <div class="video-wrap">
+      <video id="customer-cam" autoplay playsinline muted></video>
+      <div class="scan-line"></div>
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+    </div>
+
+    <div class="ai-readout">
+      <div class="readout-label">AI Live Assessment</div>
+      <div class="readout-class" id="live-class">Initializing…</div>
+      <div class="conf-bar-bg">
+        <div class="conf-bar-fill" id="live-conf-bar"></div>
+      </div>
+    </div>
+
+    <p class="instruction-text">
+      Slowly walk around <strong>all 4 sides</strong> of your vehicle.<br>
+      The AI will automatically capture damage when detected.
+    </p>
+  </div>
+
+  <!-- ── Phase 4: Evidence Locked ── -->
+  <div class="phase" id="phase-4">
+    <div class="evidence-header">
+      <h2>📸 Evidence Captured</h2>
+      <p>AI has locked on to a damage event</p>
+    </div>
+
+    <div class="verified-badge">✅ LIVE CAPTURE VERIFIED — ANTI-FRAUD</div>
+
+    <img id="evidence-img" src="" alt="Captured evidence">
+
+    <div class="evidence-card">
+      <div class="evidence-card-title">📋 Claim Evidence Record</div>
+      <div class="evidence-row">
+        <span class="ev-label">Timestamp</span>
+        <span class="ev-value" id="ev-timestamp">—</span>
+      </div>
+      <div class="evidence-row">
+        <span class="ev-label">GPS Location</span>
+        <span class="ev-value" id="ev-gps">Fetching…</span>
+      </div>
+      <div class="evidence-row">
+        <span class="ev-label">AI Classification</span>
+        <span class="ev-value green" id="ev-class">—</span>
+      </div>
+      <div class="evidence-row">
+        <span class="ev-label">Confidence</span>
+        <span class="ev-value green" id="ev-conf">—</span>
+      </div>
+      <div class="evidence-row">
+        <span class="ev-label">Capture Mode</span>
+        <span class="ev-value green">Live Camera (Gallery Disabled)</span>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-primary" id="submit-btn">✅ Submit Evidence &amp; File Claim</button>
+      <button class="btn-secondary" id="rescan-btn">↺ Rescan Vehicle</button>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+  <script>
+    // ── Safe-word list: classes matching these (lowercased) are NOT damage classes ──
+    const SAFE_WORDS = ['no damage', 'normal', 'clear', 'clean', 'undamaged', 'whole'];
+    const CONFIDENCE_THRESHOLD = 0.85; // 85% required to auto-capture
+
+    // ── State ──
+    let myMobilenet = null;
+    let myModel = null;
+    let myMetadata = null;
+    let cameraStream = null;
+    let inferenceLoop = null;
+    let hasCaptured = false; // Guard flag — prevents duplicate captures
+
+    // ── Fraud Lock: disable all drag-drop on the page ──
+    document.addEventListener('dragover', e => e.preventDefault());
+    document.addEventListener('drop', e => e.preventDefault());
+
+    // ── Phase State Machine ──
+    function showPhase(n) {
+      document.querySelectorAll('.phase').forEach(p => p.classList.remove('active'));
+      const target = document.getElementById(`phase-${n}`);
+      if (target) target.classList.add('active');
+    }
+
+    // ── Step Helpers ──
+    function setStep(id, state) {
+      const el = document.getElementById(`step-${id}`);
+      if (!el) return;
+      el.className = 'step-item ' + state;
+      const icons = { done: '✅', active: '⏳', error: '❌', '': '⬜' };
+      el.querySelector('.step-icon').textContent = icons[state] || '⬜';
+    }
+
+    function setProgress(pct) {
+      const bar = document.getElementById('progress-bar');
+      if (bar) bar.style.width = pct + '%';
+    }
+
+    function showInitError(msg) {
+      document.getElementById('loader-spinner').style.display = 'none';
+      const card = document.getElementById('error-card');
+      card.style.display = 'block';
+      document.getElementById('error-msg').textContent = msg;
+      document.getElementById('retry-btn').style.display = 'block';
+    }
+
+    // ── Main Boot Sequence ──
+    document.getElementById('begin-btn').addEventListener('click', async () => {
+      showPhase(2);
+      await runInitSequence();
+    });
+
+    async function runInitSequence() {
+      // ── STEP 1: Load Model from /model/ directory ──
+      // These files (model.json, model.weights.bin, metadata.json) are exported
+      // by the Admin Lab (index.html) and MUST be placed in a /model/ folder
+      // on the same server where this page is hosted.
+      setStep(1, 'active');
+      try {
+        myMobilenet = await mobilenet.load(); // Full size — 1024D embeddings
+        // Load custom Dense classifier from relative path
+        myModel = await tf.loadLayersModel('./model/model.json');
+        // Fetch class names from metadata
+        const res = await fetch('./model/metadata.json');
+        if (!res.ok) throw new Error(`metadata.json not found (HTTP ${res.status})`);
+        myMetadata = await res.json();
+
+        setStep(1, 'done');
+        setProgress(33);
+      } catch (err) {
+        console.error('[ClaimLens] Model load failed:', err);
+        setStep(1, 'error');
+        showInitError(`Could not load the AI inspection model. Please ensure you have an active internet connection. (${err.message})`);
+        return;
+      }
+
+      // ── STEP 2: Always shown as "done" (MobileNet already loaded above) ──
+      setStep(2, 'active');
+      await new Promise(r => setTimeout(r, 300)); // Brief pause feels intentional
+      setStep(2, 'done');
+      setProgress(66);
+
+      // ── STEP 3: Camera Permission ──
+      setStep(3, 'active');
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' }, // Rear camera preferred
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+
+        const vid = document.getElementById('customer-cam');
+        vid.srcObject = cameraStream;
+        await new Promise((resolve, reject) => {
+          vid.onloadedmetadata = resolve;
+          vid.onerror = reject;
+        });
+        vid.play();
+
+        setStep(3, 'done');
+        setProgress(100);
+      } catch (err) {
+        console.error('[ClaimLens] Camera failed:', err);
+        setStep(3, 'error');
+        showInitError('Camera access was denied or unavailable. Please allow camera permissions in your browser settings and retry.');
+        return;
+      }
+
+      // ── All systems ready — move to scanner ──
+      await new Promise(r => setTimeout(r, 400));
+      showPhase(3);
+      startInferenceLoop();
+    }
+
+    // ── Inference Loop (every 300ms) ──
+    function startInferenceLoop() {
+      hasCaptured = false;
+      inferenceLoop = setInterval(async () => {
+        if (hasCaptured) return; // Guard: stop processing after capture
+        const vid = document.getElementById('customer-cam');
+        if (!vid || vid.videoWidth === 0) return;
+
+        let activation, predictions;
+        try {
+          // Same inference pattern as agent.html
+          activation = myMobilenet.infer(vid, true); // 1024D embedding
+          predictions = myModel.predict(activation);
+          const probArray = await predictions.data();
+
+          // Find highest confidence class
+          let maxProb = 0, maxIdx = 0;
+          for (let i = 0; i < probArray.length; i++) {
+            if (probArray[i] > maxProb) { maxProb = probArray[i]; maxIdx = i; }
+          }
+
+          const winnerClass = myMetadata.classes[maxIdx];
+          const confPct = (maxProb * 100).toFixed(1);
+
+          // Update live readout UI
+          document.getElementById('live-class').textContent = `${winnerClass} — ${confPct}%`;
+          document.getElementById('live-conf-bar').style.width = confPct + '%';
+          document.getElementById('live-conf-bar').style.background =
+            maxProb > 0.7 ? '#ef4444' : '#10b981';
+
+          // ── TRIGGER CHECK ──
+          const isDamageClass = !SAFE_WORDS.includes(winnerClass.toLowerCase().trim());
+          if (maxProb >= CONFIDENCE_THRESHOLD && isDamageClass) {
+            hasCaptured = true; // Set guard immediately — prevents re-trigger
+            clearInterval(inferenceLoop);
+            await fireCapture(vid, winnerClass, maxProb);
+          }
+        } catch (err) {
+          console.error('[Inference error]', err);
+        } finally {
+          // Always dispose tensors to prevent GPU memory leaks
+          if (activation) activation.dispose();
+          if (predictions) predictions.dispose();
+        }
+      }, 300);
+    }
+
+    // ── Auto-Capture + GPS Stamp ──
+    async function fireCapture(vid, className, confidence) {
+      // Draw current frame onto off-screen canvas at native resolution
+      const cvs = document.createElement('canvas');
+      cvs.width = vid.videoWidth;
+      cvs.height = vid.videoHeight;
+      cvs.getContext('2d').drawImage(vid, 0, 0);
+      const evidenceDataURL = cvs.toDataURL('image/jpeg', 0.92);
+
+      // Stop camera hardware immediately
+      if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+
+      const timestamp = new Date().toLocaleString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+
+      // Fetch GPS — resolves with coords or null (never blocks)
+      const gps = await fetchGPS();
+
+      // Populate Phase 4
+      document.getElementById('evidence-img').src = evidenceDataURL;
+      document.getElementById('ev-timestamp').textContent = timestamp;
+      document.getElementById('ev-class').textContent = className;
+      document.getElementById('ev-conf').textContent = (confidence * 100).toFixed(1) + '%';
+      document.getElementById('ev-gps').textContent = gps
+        ? `${gps.lat}, ${gps.lon} (±${gps.acc}m)`
+        : 'Location not available (permission denied)';
+
+      showPhase(4);
+    }
+
+    // ── GPS Helper ──
+    function fetchGPS() {
+      return new Promise(resolve => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve({
+            lat: pos.coords.latitude.toFixed(6),
+            lon: pos.coords.longitude.toFixed(6),
+            acc: Math.round(pos.coords.accuracy)
+          }),
+          () => resolve(null), // Graceful fallback — never fail on GPS
+          { timeout: 5000, maximumAge: 0 }
+        );
+      });
+    }
+
+    // ── Submit Button ──
+    document.getElementById('submit-btn').addEventListener('click', () => {
+      const claimId = 'CLM-' + (Math.floor(Math.random() * 90000) + 10000);
+      showToast(`✅ Evidence Submitted! Claim ID: ${claimId}`);
+    });
+
+    // ── Rescan Button ──
+    document.getElementById('rescan-btn').addEventListener('click', async () => {
+      hasCaptured = false;
+      // Restart camera
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+        const vid = document.getElementById('customer-cam');
+        vid.srcObject = cameraStream;
+        vid.play();
+        showPhase(3);
+        startInferenceLoop();
+      } catch (err) {
+        alert('Could not restart camera. Please reload the page.');
+      }
+    });
+
+    // ── Toast Notification ──
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+  </script>
+</body>
+</html>
