@@ -6,6 +6,7 @@
   <title>AutoClaim Agent Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+  <script src="js/ml/xai.js"></script>
   <style>
     :root {
       --bg: #0f172a;
@@ -167,6 +168,61 @@
     let myMetadata = null;
     let cameraStream = null;
     let liveInterval = null;
+    let lastFrozenCapture = null;
+    let lastLiveXaiResult = null;
+
+    function getLoadedClassNames() {
+      return myMetadata?.classes || [];
+    }
+
+    function getFallbackXaiPayload(imageDataURL, className) {
+      return {
+        overlayDataURL: imageDataURL,
+        summaryText: `Fallback evidence view used for ${className}. Load the model to generate a real explainable heatmap.`,
+        mode: 'fallback-view',
+        maxDropPercent: 0
+      };
+    }
+
+    async function generateAgentXai(imageDataURL, className, cacheKey) {
+      if (!window.ClaimLensXAI || !myMobilenet || !myModel) {
+        return getFallbackXaiPayload(imageDataURL, className);
+      }
+
+      try {
+        const result = await window.ClaimLensXAI.generateOcclusionMap({
+          source: imageDataURL,
+          mobilenetModel: myMobilenet,
+          classifierModel: myModel,
+          classNames: getLoadedClassNames(),
+          targetClassName: className,
+          patchSize: 40,
+          stride: 24,
+          cacheKey
+        });
+
+        return {
+          overlayDataURL: result.overlayDataURL,
+          summaryText: result.summaryText,
+          mode: result.mode,
+          maxDropPercent: result.maxDropPercent
+        };
+      } catch (err) {
+        console.error('[Agent XAI] generation failed:', err);
+        return getFallbackXaiPayload(imageDataURL, className);
+      }
+    }
+
+    function buildXaiSectionHtml(xai) {
+      return `
+        <div style="margin-top:15px; padding:14px 16px; background:#eef6ff; border:1px solid #bfdbfe; border-radius:6px;">
+          <strong style="display:block; margin-bottom:8px; color:#1d4ed8;">Explainable AI Summary</strong>
+          <div style="margin-bottom:6px;"><strong>Engine:</strong> ${xai.mode}</div>
+          <div style="margin-bottom:6px;"><strong>Top Confidence Drop:</strong> ${xai.maxDropPercent}%</div>
+          <div><strong>Why the model focused here:</strong> ${xai.summaryText}</div>
+        </div>
+      `;
+    }
 
     // --- Tabs Logic ---
     function switchTab(tabId) {
@@ -293,9 +349,24 @@
       showToast(`Claim ${id} forwarded successfully to Admin Underwriter.`);
     };
 
-    window.printInboxReport = function(id) {
+    window.printInboxReport = async function(id) {
       const claims = JSON.parse(localStorage.getItem('claimlens_claims'));
       const claim = claims.find(c => c.id === id);
+      if (!claim) return;
+
+      let xai = null;
+      if (claim.xaiMode === 'occlusion' && claim.xaiSummary && claim.heatmapDataURL) {
+        xai = {
+          overlayDataURL: claim.heatmapDataURL,
+          summaryText: claim.xaiSummary,
+          mode: claim.xaiMode,
+          maxDropPercent: claim.xaiMaxDropPercent || 0
+        };
+      } else {
+        showToast('Generating explainable heatmap for report...');
+        xai = await generateAgentXai(claim.imageDataURL, claim.className, `inbox:${claim.id}`);
+      }
+
       document.getElementById('print-date').innerText = "Report Printed: " + new Date().toLocaleString();
       document.getElementById('print-content').innerHTML = `
         <div style="display: flex; gap: 30px;">
@@ -304,8 +375,8 @@
                  <img src="${claim.imageDataURL}" style="width:100%; border-radius:4px; border:1px solid #cbd5e1; margin-bottom:15px;">
             </div>
             <div style="flex:1;">
-                 <h3 style="color:#1e293b; margin-top:0; font-size:16px;">AI Heatmap Layer</h3>
-                 <img src="${claim.heatmapDataURL}" style="width:100%; border-radius:4px; border:1px solid #cbd5e1; margin-bottom:15px;">
+                 <h3 style="color:#1e293b; margin-top:0; font-size:16px;">Explainable AI Heatmap</h3>
+                 <img src="${xai.overlayDataURL}" style="width:100%; border-radius:4px; border:1px solid #cbd5e1; margin-bottom:15px;">
             </div>
         </div>
         <div style="padding:20px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; color:#1e293b;">
@@ -319,6 +390,7 @@
             <div style="margin-bottom:8px;"><strong>System Status:</strong> ${claim.status.toUpperCase()}</div>
             ${claim.note ? `<div style="margin-bottom:8px; color:#ef4444;"><strong>Note:</strong> ${claim.note}</div>` : ''}
             <div style="margin-top:15px; font-size:16px;"><strong>Algorithm Classification:</strong> <span style="color:#2563eb;">${claim.className} (${(claim.confidence*100).toFixed(1)}%)</span></div>
+            ${buildXaiSectionHtml(xai)}
         </div>
       `;
       window.print();
@@ -448,6 +520,8 @@
         fp.src = cvs.toDataURL('image/jpeg');
         fp.style.display = 'block';
         vid.style.display = 'none';
+        lastFrozenCapture = { imageDataURL: fp.src, className };
+        lastLiveXaiResult = null;
         
         document.getElementById('live-btn').style.display = 'none';
         document.getElementById('stop-btn').style.display = 'none';
@@ -476,7 +550,30 @@
         forceAgentCapture(bestCls);
     });
     
-    document.getElementById('report-btn').addEventListener('click', () => {
+    document.getElementById('report-btn').addEventListener('click', async () => {
+        const freezeSrc = document.getElementById('freeze-preview').src;
+        if (!freezeSrc) return;
+
+        if (!lastFrozenCapture) {
+           let bestCls = "Manual Override";
+           let bestScore = -1;
+           myMetadata.classes.forEach(c => {
+              const val = parseFloat(document.getElementById('pct-'+c).innerText);
+              if (val > bestScore) { bestScore = val; bestCls = c; }
+           });
+           lastFrozenCapture = { imageDataURL: freezeSrc, className: bestCls };
+        }
+
+        document.getElementById('report-btn').disabled = true;
+        document.getElementById('report-btn').textContent = 'Generating Real XAI...';
+        if (!lastLiveXaiResult) {
+          lastLiveXaiResult = await generateAgentXai(
+            lastFrozenCapture.imageDataURL,
+            lastFrozenCapture.className,
+            `live:${lastFrozenCapture.className}:${lastFrozenCapture.imageDataURL.slice(0, 120)}`
+          );
+        }
+
         document.getElementById('print-date').innerText = "Report Printed: " + new Date().toLocaleString();
         
         // Build the legacy report view (Live Scan mode uses just 1 image)
@@ -484,10 +581,11 @@
           <div style="display: flex; gap: 30px;">
               <div style="flex:1;">
                    <h3 style="color:#1e293b; margin-top:0; font-size:16px;">Evidence Snapshot</h3>
-                   <img src="${document.getElementById('freeze-preview').src}" style="width:100%; border-radius:4px; border:1px solid #cbd5e1;">
+                   <img src="${freezeSrc}" style="width:100%; border-radius:4px; border:1px solid #cbd5e1;">
               </div>
               <div style="flex:1;">
-                   <h3 style="color:#1e293b; margin-top:0; font-size:16px;">AI Risk Analysis Breakdown</h3>
+                   <h3 style="color:#1e293b; margin-top:0; font-size:16px;">Explainable AI Heatmap</h3>
+                   <img src="${lastLiveXaiResult.overlayDataURL}" style="width:100%; border-radius:4px; border:1px solid #cbd5e1; margin-bottom:15px;">
                    <ul style="list-style:none; padding:0; margin:0; color:#1e293b;" id="report-stats"></ul>
                    <div style="margin-top:30px; padding:20px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px;">
                        <strong style="display:block; margin-bottom:8px; color:#334155;">Final Algorithmic Outcome:</strong>
@@ -518,7 +616,11 @@
            document.getElementById('report-outcome').style.color = "#f59e0b";
         }
 
+        document.getElementById('print-content').innerHTML += buildXaiSectionHtml(lastLiveXaiResult);
+
         window.print();
+        document.getElementById('report-btn').disabled = false;
+        document.getElementById('report-btn').textContent = '📄 Generate Claim Report (PDF)';
     });
 
     // Initialize UI on load

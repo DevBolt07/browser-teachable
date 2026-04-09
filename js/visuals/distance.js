@@ -14,19 +14,32 @@ export async function updateDistancePanel() {
   const distNote = document.getElementById('distNote');
   if (!distPairs || !distNote) return;
   const valid = store.classes.filter(c => c.embeddings.length > 0);
-  if (valid.length < 2) {
+  const canUseEmbeddings = valid.length >= 2;
+  const canUseMeans = !canUseEmbeddings
+    && store.classMeans.length === store.classes.length
+    && store.classMeans.filter(Boolean).length >= 2;
+
+  if (!canUseEmbeddings && !canUseMeans) {
     distPairs.innerHTML = '<div style="font-size:0.82rem;color:#a0aec0;">Add samples to at least 2 classes to see how separable they are.</div>';
     distNote.textContent = '';
     return;
   }
 
-  const means = await Promise.all(valid.map(async cls => {
-    const stacked = tf.stack(cls.embeddings);
-    const mean    = tf.mean(stacked, 0);
-    const data    = await mean.data();
-    stacked.dispose(); mean.dispose();
-    return { cls, data };
-  }));
+  const means = canUseEmbeddings
+    ? await Promise.all(valid.map(async cls => {
+        const stacked = tf.stack(cls.embeddings);
+        const mean = tf.mean(stacked, 0);
+        const data = await mean.data();
+        stacked.dispose();
+        mean.dispose();
+        return { cls, data };
+      }))
+    : store.classes
+        .map((cls, idx) => {
+          const data = store.classMeans[idx];
+          return data ? { cls, data } : null;
+        })
+        .filter(Boolean);
 
   const pairs = [];
   for (let i = 0; i < means.length; i++) {
@@ -76,5 +89,9 @@ export async function updateDistancePanel() {
     note = '🟡 Classes are <b>moderately different</b>. Add more diverse samples to improve accuracy.';
   else
     note = '✅ Classes are <b>well separated</b> — the model should learn to distinguish them reliably.';
+
+  if (!canUseEmbeddings) {
+    note += ' <br><br><span style="color:#718096;">Showing saved class-mean distances from the imported model.</span>';
+  }
   distNote.innerHTML = note;
 }

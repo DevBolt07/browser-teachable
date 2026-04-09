@@ -456,6 +456,10 @@
         <span class="ev-value green" id="ev-conf">—</span>
       </div>
       <div class="evidence-row">
+        <span class="ev-label">Explainability</span>
+        <span class="ev-value" id="ev-xai">Generating real heatmap...</span>
+      </div>
+      <div class="evidence-row">
         <span class="ev-label">Forensic Hash</span>
         <span class="ev-value" id="ev-hash" style="font-size:0.75rem; color:var(--muted); font-family:monospace;">—</span>
       </div>
@@ -470,7 +474,7 @@
     </div>
 
     <div class="btn-group">
-      <button class="btn-primary" id="submit-btn" style="background:#8b5cf6;">🚀 Generate &amp; Submit Report</button>
+      <button class="btn-primary" id="submit-btn" style="background:#8b5cf6;">Auto-submit pending...</button>
       <button class="btn-secondary" id="download-btn">⬇ Download My Copy (PDF)</button>
       <button class="btn-secondary" id="rescan-btn" style="border:none;">↺ Discard &amp; Rescan Vehicle</button>
     </div>
@@ -498,6 +502,8 @@
           <div style="margin-bottom:6px;"><strong>Claim ID:</strong> <span id="print-id"></span></div>
           <div style="margin-bottom:6px;"><strong>GPS Location:</strong> <span id="print-gps"></span> <span style="font-size:0.8em; color:#64748b;">(For precise GPS, open this link on your mobile device)</span></div>
           <div style="margin-bottom:6px;"><strong>AI Classification:</strong> <span id="print-class"></span> (<span id="print-conf"></span>)</div>
+          <div style="margin-bottom:6px;"><strong>XAI Summary:</strong> <span id="print-xai"></span></div>
+          <div style="margin-bottom:6px;"><strong>XAI Engine:</strong> <span id="print-xai-mode"></span></div>
           <div style="margin-bottom:6px;"><strong>Image Resolution:</strong> <span id="print-res"></span></div>
           <div style="margin-bottom:6px;"><strong>Device Signature:</strong> <span id="print-device" style="font-family:monospace; font-size:11px; display:inline-block; max-width:500px;"></span></div>
           <div style="margin-bottom:6px;"><strong>Forensic SHA-256:</strong> <span id="print-hash" style="font-family:monospace; font-size:11px;"></span></div>
@@ -512,10 +518,13 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+  <script src="js/ml/xai.js"></script>
   <script>
     // ── Safe-word list: classes matching these (lowercased) are NOT damage classes ──
     const SAFE_WORDS = ['no damage', 'normal', 'clear', 'clean', 'undamaged', 'whole'];
     const CONFIDENCE_THRESHOLD = 0.85; // 85% required to auto-capture
+    const ACTIVE_MODEL_DB_KEY = 'indexeddb://claimlens-active-model';
+    const ACTIVE_MODEL_META_KEY = 'claimlens_active_model_metadata';
 
     // ── State ──
     let myMobilenet = null;
@@ -525,6 +534,54 @@
     let inferenceLoop = null;
     let hasCaptured = false; // Guard flag — prevents duplicate captures
     let pendingClaim = null; // Holds structured data for the report
+    let activeCaptureToken = 0;
+    const submitBtn = document.getElementById('submit-btn');
+    const DEFAULT_SUBMIT_LABEL = 'Auto-submit pending...';
+
+    function normalizeMetadata(meta) {
+      if (!meta) return null;
+
+      const classes = Array.isArray(meta.classes)
+        ? meta.classes.map(cls => typeof cls === 'string' ? cls : cls?.name).filter(Boolean)
+        : Array.isArray(meta.classNames)
+          ? meta.classNames.filter(Boolean)
+          : [];
+
+      if (!classes.length) return null;
+      return { ...meta, classes };
+    }
+
+    function getClassNames() {
+      return myMetadata?.classes || [];
+    }
+
+    async function loadBrowserPublishedModel() {
+      const metaRaw = localStorage.getItem(ACTIVE_MODEL_META_KEY);
+      if (!metaRaw) return null;
+
+      try {
+        const meta = normalizeMetadata(JSON.parse(metaRaw));
+        if (!meta) throw new Error('Published metadata does not include class names.');
+
+        const model = await tf.loadLayersModel(ACTIVE_MODEL_DB_KEY);
+        return { model, metadata: meta, source: 'browser' };
+      } catch (err) {
+        console.warn('[ClaimLens] Browser-published model could not be loaded, falling back to /model files.', err);
+        localStorage.removeItem(ACTIVE_MODEL_META_KEY);
+        return null;
+      }
+    }
+
+    async function loadStaticModelFiles() {
+      const model = await tf.loadLayersModel('./model/model.json');
+      const res = await fetch('./model/metadata.json');
+      if (!res.ok) throw new Error(`metadata.json not found (HTTP ${res.status})`);
+
+      const meta = normalizeMetadata(await res.json());
+      if (!meta) throw new Error('metadata.json is missing valid class names.');
+
+      return { model, metadata: meta, source: 'static' };
+    }
 
     // ── Fraud Lock: disable all drag-drop on the page ──
     document.addEventListener('dragover', e => e.preventDefault());
@@ -557,6 +614,115 @@
       card.style.display = 'block';
       document.getElementById('error-msg').textContent = msg;
       document.getElementById('retry-btn').style.display = 'block';
+    }
+
+    function resetSubmitState() {
+      submitBtn.disabled = false;
+      submitBtn.textContent = DEFAULT_SUBMIT_LABEL;
+      submitBtn.style.background = '#8b5cf6';
+    }
+
+    function markSubmitInProgress() {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting to surveyor...';
+      submitBtn.style.background = '#8b5cf6';
+    }
+
+    function markSubmitSuccess() {
+      submitBtn.disabled = true;
+      submitBtn.textContent = '✓ Auto-submitted to Surveyor';
+      submitBtn.style.background = '#10b981';
+    }
+
+    function markSubmitRetry() {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Retry claim submission';
+      submitBtn.style.background = '#ef4444';
+    }
+
+    function submitPendingClaim({ showSuccessToast = true } = {}) {
+      if (!pendingClaim || pendingClaim.submitted) return true;
+
+      try {
+        const claimsStr = localStorage.getItem('claimlens_claims');
+        const claims = claimsStr ? JSON.parse(claimsStr) : [];
+        claims.push(pendingClaim);
+        localStorage.setItem('claimlens_claims', JSON.stringify(claims));
+
+        pendingClaim.submitted = true;
+        markSubmitSuccess();
+        if (showSuccessToast) showToast(`✅ Claim ${pendingClaim.id} submitted to surveyor!`);
+        return true;
+      } catch (err) {
+        console.error('[ClaimLens] Claim submission failed:', err);
+        markSubmitRetry();
+        showToast('❌ Auto-submit failed. Tap retry to send your claim.');
+        return false;
+      }
+    }
+
+    function setXaiStatus(message, color = 'var(--muted)') {
+      const xaiEl = document.getElementById('ev-xai');
+      if (!xaiEl) return;
+      xaiEl.textContent = message;
+      xaiEl.style.color = color;
+    }
+
+    function generateFallbackHeatmap(videoEl) {
+      const fallbackCanvas = document.createElement('canvas');
+      fallbackCanvas.width = videoEl.videoWidth;
+      fallbackCanvas.height = videoEl.videoHeight;
+      const fallbackCtx = fallbackCanvas.getContext('2d');
+      fallbackCtx.drawImage(videoEl, 0, 0);
+
+      const cx = videoEl.videoWidth / 2;
+      const cy = videoEl.videoHeight * 0.6;
+      const rOuter = Math.min(videoEl.videoWidth, videoEl.videoHeight) * 0.4;
+      const gradient = fallbackCtx.createRadialGradient(cx, cy, 0, cx, cy, rOuter);
+      gradient.addColorStop(0, 'rgba(239, 68, 68, 0.5)');
+      gradient.addColorStop(0.5, 'rgba(245, 158, 11, 0.3)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+      fallbackCtx.fillStyle = gradient;
+      fallbackCtx.fillRect(0, 0, videoEl.videoWidth, videoEl.videoHeight);
+
+      return {
+        overlayDataURL: fallbackCanvas.toDataURL('image/jpeg', 0.92),
+        summaryText: 'Fallback visual focus map used because the real explainability engine was unavailable.',
+        mode: 'fallback-heatmap',
+        maxDropPercent: 0
+      };
+    }
+
+    async function generateRealXaiEvidence(imageDataURL, className, fallbackResult) {
+      if (!window.ClaimLensXAI || !myMobilenet || !myModel) return fallbackResult;
+
+      try {
+        setXaiStatus('Generating real explainable heatmap...', 'var(--amber)');
+        const result = await window.ClaimLensXAI.generateOcclusionMap({
+          source: imageDataURL,
+          mobilenetModel: myMobilenet,
+          classifierModel: myModel,
+          classNames: getClassNames(),
+          targetClassName: className,
+          patchSize: 40,
+          stride: 24,
+          cacheKey: `customer:${className}:${imageDataURL.slice(0, 120)}`
+        });
+
+        return {
+          overlayDataURL: result.overlayDataURL,
+          summaryText: result.summaryText,
+          mode: result.mode,
+          maxDropPercent: result.maxDropPercent
+        };
+      } catch (err) {
+        console.error('[ClaimLens] XAI generation failed:', err);
+        return {
+          ...fallbackResult,
+          summaryText: 'Real explainable heatmap failed, so a fallback focus map was used.'
+        };
+      }
     }
 
     // ── Main Boot Sequence ──
@@ -630,6 +796,62 @@
       startInferenceLoop();
     }
 
+    async function runInitSequence() {
+      setStep(1, 'active');
+      try {
+        myMobilenet = await mobilenet.load();
+        const preferredModel = await loadBrowserPublishedModel();
+        const loaded = preferredModel || await loadStaticModelFiles();
+        myModel = loaded.model;
+        myMetadata = loaded.metadata;
+
+        setStep(1, 'done');
+        setProgress(33);
+      } catch (err) {
+        console.error('[ClaimLens] Model load failed:', err);
+        setStep(1, 'error');
+        showInitError(`Could not load the AI inspection model. Train or import a model in the Admin Lab first, or place model.json + model.weights.bin + metadata.json in /model. (${err.message})`);
+        return;
+      }
+
+      setStep(2, 'active');
+      await new Promise(r => setTimeout(r, 300));
+      setStep(2, 'done');
+      setProgress(66);
+
+      setStep(3, 'active');
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+
+        const vid = document.getElementById('customer-cam');
+        vid.srcObject = cameraStream;
+        await new Promise((resolve, reject) => {
+          vid.onloadedmetadata = resolve;
+          vid.onerror = reject;
+        });
+        vid.play();
+
+        setStep(3, 'done');
+        setProgress(100);
+      } catch (err) {
+        console.error('[ClaimLens] Camera failed:', err);
+        setStep(3, 'error');
+        showInitError('Camera access was denied or unavailable. Please allow camera permissions in your browser settings and retry.');
+        return;
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+      showPhase(3);
+      startInferenceLoop();
+    }
+
     // ── Inference Loop (every 300ms) ──
     function startInferenceLoop() {
       hasCaptured = false;
@@ -646,7 +868,7 @@
           const probArray = await predictions.data();
 
           // Find top 3 confident classes
-          const sorted = Array.from(probArray).map((p, i) => ({ prob: p, class: myMetadata.classes[i] }))
+          const sorted = Array.from(probArray).map((p, i) => ({ prob: p, class: getClassNames()[i] || `Class ${i + 1}` }))
                               .sort((a,b) => b.prob - a.prob).slice(0, 3);
 
           const maxProb = sorted[0].prob;
@@ -698,6 +920,7 @@
 
     // ── Auto-Capture + GPS Stamp ──
     async function fireCapture(vid, className, confidence) {
+      const currentCaptureToken = ++activeCaptureToken;
       // Draw current frame onto off-screen canvas at native resolution
       const cvs = document.createElement('canvas');
       cvs.width = vid.videoWidth;
@@ -705,23 +928,7 @@
       cvs.getContext('2d').drawImage(vid, 0, 0);
       const evidenceDataURL = cvs.toDataURL('image/jpeg', 0.92);
 
-      // Generate simulated Heatmap logic (Radial Gradient over captured image)
-      const cvsHeatmap = document.createElement('canvas');
-      cvsHeatmap.width = vid.videoWidth; cvsHeatmap.height = vid.videoHeight;
-      const ctxH = cvsHeatmap.getContext('2d');
-      ctxH.drawImage(vid, 0, 0);
-      
-      const cx = vid.videoWidth / 2;
-      const cy = vid.videoHeight * 0.6; // lower center focus
-      const rOuter = Math.min(vid.videoWidth, vid.videoHeight) * 0.4;
-      const grad = ctxH.createRadialGradient(cx, cy, 0, cx, cy, rOuter);
-      grad.addColorStop(0, "rgba(239, 68, 68, 0.5)"); // Red
-      grad.addColorStop(0.5, "rgba(245, 158, 11, 0.3)"); // Amber
-      grad.addColorStop(1, "rgba(0, 0, 0, 0)"); // Transparent
-      
-      ctxH.fillStyle = grad;
-      ctxH.fillRect(0, 0, vid.videoWidth, vid.videoHeight);
-      const heatmapDataURL = cvsHeatmap.toDataURL('image/jpeg', 0.92);
+      const fallbackXai = generateFallbackHeatmap(vid);
 
       // Stop camera hardware immediately
       if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
@@ -748,14 +955,24 @@
 
       // Populate Phase 4
       document.getElementById('evidence-img').src = evidenceDataURL;
-      document.getElementById('heatmap-img').src = heatmapDataURL;
+      document.getElementById('heatmap-img').src = fallbackXai.overlayDataURL;
       document.getElementById('ev-timestamp').textContent = timestamp;
       document.getElementById('ev-class').textContent = className;
       document.getElementById('ev-conf').textContent = (confidence * 100).toFixed(1) + '%';
       document.getElementById('ev-gps').textContent = gpsString;
       document.getElementById('ev-device').textContent = deviceStr.substring(0,40) + '...';
       document.getElementById('ev-hash').textContent = forensicHash.substring(0, 32);
-      
+      setXaiStatus('Generating real explainable heatmap...', 'var(--amber)');
+      resetSubmitState();
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Generating explainability...';
+      showPhase(4);
+
+      const xaiResult = await generateRealXaiEvidence(evidenceDataURL, className, fallbackXai);
+      if (currentCaptureToken !== activeCaptureToken) return;
+      document.getElementById('heatmap-img').src = xaiResult.overlayDataURL;
+      setXaiStatus(xaiResult.summaryText, xaiResult.mode === 'occlusion' ? 'var(--green)' : 'var(--amber)');
+
       // Store in memory for submission
       pendingClaim = {
         id: 'CLM-' + (Math.floor(Math.random() * 90000) + 10000),
@@ -767,11 +984,17 @@
         className: className,
         confidence: confidence,
         imageDataURL: evidenceDataURL,
-        heatmapDataURL: heatmapDataURL,
-        status: 'pending'
+        heatmapDataURL: xaiResult.overlayDataURL,
+        xaiSummary: xaiResult.summaryText,
+        xaiMode: xaiResult.mode,
+        xaiMaxDropPercent: xaiResult.maxDropPercent,
+        status: 'pending',
+        submitted: false
       };
 
-      showPhase(4);
+      resetSubmitState();
+      markSubmitInProgress();
+      submitPendingClaim();
     }
 
     // ── GPS Helper ──
@@ -791,16 +1014,10 @@
     }
 
     // ── Button Callbacks ──
-    document.getElementById('submit-btn').addEventListener('click', () => {
-      if (!pendingClaim) return;
-      const claimsStr = localStorage.getItem('claimlens_claims');
-      const claims = claimsStr ? JSON.parse(claimsStr) : [];
-      claims.push(pendingClaim);
-      localStorage.setItem('claimlens_claims', JSON.stringify(claims));
-      
-      showToast(`✅ Claim ${pendingClaim.id} submitted to surveyor!`);
-      document.getElementById('submit-btn').disabled = true;
-      document.getElementById('submit-btn').textContent = "✓ Report Submitted";
+    submitBtn.addEventListener('click', () => {
+      if (!pendingClaim || pendingClaim.submitted) return;
+      markSubmitInProgress();
+      submitPendingClaim();
     });
 
     document.getElementById('download-btn').addEventListener('click', () => {
@@ -815,12 +1032,18 @@
       document.getElementById('print-hash').textContent = pendingClaim.hash;
       document.getElementById('print-class').textContent = pendingClaim.className;
       document.getElementById('print-conf').textContent = (pendingClaim.confidence * 100).toFixed(1) + "%";
+      document.getElementById('print-xai').textContent = pendingClaim.xaiSummary || 'No explainability summary available.';
+      document.getElementById('print-xai-mode').textContent = pendingClaim.xaiMode || 'Unavailable';
       window.print();
     });
 
     // ── Rescan Button ──
     document.getElementById('rescan-btn').addEventListener('click', async () => {
       hasCaptured = false;
+      activeCaptureToken++;
+      pendingClaim = null;
+      resetSubmitState();
+      setXaiStatus('Generating real heatmap...', 'var(--muted)');
       // Restart camera
       try {
         cameraStream = await navigator.mediaDevices.getUserMedia({

@@ -12,6 +12,7 @@ import { resetTrainingCharts, pushTrainingCharts } from '../visuals/charts.js';
 import { drawArchDiagram } from '../visuals/architecture.js';
 import { updateDistancePanel } from '../visuals/distance.js';
 import { initReplayCard } from '../ui/replay.js';
+import { publishActiveModelToBrowser } from './persistence.js';
 
 // ── Model Architecture Setup ─────────────────────────────────────
 
@@ -93,6 +94,7 @@ export async function trainModel() {
 
     store.modelTrained = true;
     await computeClassMeans();   
+    await publishActiveModelToBrowser();
     setPipe('predict');
     setStatus('🎉 Training complete! Predict an image or start live prediction.', 'ready');
     trainLog.textContent   = '✅ Model trained successfully!';

@@ -57,6 +57,14 @@
         <p>Click or drag &amp; drop an image</p>
       </div>
       <input type="file" id="imageUpload" accept="image/*"/>
+      <input type="file" id="datasetFolderInput" accept="image/*" webkitdirectory directory multiple style="display:none;"/>
+      <input type="file" id="classFolderInput" accept="image/*" webkitdirectory directory multiple style="display:none;"/>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
+        <button class="btn btn-outline btn-sm" id="importDatasetBtn" disabled>ðŸ—‚ Import Dataset Folder</button>
+        <div style="font-size:0.76rem;color:#718096;line-height:1.5;">
+          One root folder = one dataset. Each subfolder becomes its own class automatically.
+        </div>
+      </div>
       <img id="preview" alt="preview"/>
     </div>
 
@@ -76,7 +84,7 @@
         🏷 Classification Tiers <span class="step-badge">STEP 3</span>
       </div>
       <div id="classes-wrap"></div>
-      <button id="addClassBtn" disabled>＋ Add Class &nbsp;<span style="opacity:0.5;font-size:0.7rem">(max 5)</span></button>
+      <button id="addClassBtn" disabled>＋ Add Class &nbsp;<span style="opacity:0.5;font-size:0.7rem">(max 12)</span></button>
     </div>
 
     <!-- Sample Quality Dashboard -->

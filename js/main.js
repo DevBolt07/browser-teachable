@@ -9,7 +9,7 @@ import { store } from './store.js';
 import { loadMobileNet } from './ml/mobilenet.js';
 import { trainModel, buildClassifier } from './ml/training.js';
 import { predictImage, performLivePredictionStep } from './ml/prediction.js';
-import { addNewClass, clearClassSamples, deleteClass, addSampleFromImage } from './ui/classes.js';
+import { addNewClass, clearClassSamples, deleteClass, addSampleFromImage, importClassFolderFiles, importDatasetFromFolders } from './ui/classes.js';
 import { startWebcam, startCollection, stopCollection } from './ui/webcam.js';
 import { setReplaySource, stopReplayAuto, scrubToEpoch, restoreFinalWeights } from './ui/replay.js';
 import { toggleInternals } from './visuals/internals.js';
@@ -32,7 +32,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const uploadArea = document.getElementById('uploadArea');
   const imageUpload = document.getElementById('imageUpload');
+  const datasetFolderInput = document.getElementById('datasetFolderInput');
+  const classFolderInput = document.getElementById('classFolderInput');
+  const importDatasetBtn = document.getElementById('importDatasetBtn');
   const preview = document.getElementById('preview');
+  let pendingClassFolderId = null;
+
+  window.importClassFolder = id => {
+    pendingClassFolderId = id;
+    if (classFolderInput) classFolderInput.click();
+  };
 
   uploadArea.addEventListener('click', () => imageUpload.click());
   uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
@@ -43,6 +52,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (f && f.type.startsWith('image/')) readFile(f);
   });
   imageUpload.addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); });
+  if (importDatasetBtn && datasetFolderInput) {
+    importDatasetBtn.addEventListener('click', () => datasetFolderInput.click());
+  }
+  if (datasetFolderInput) {
+    datasetFolderInput.addEventListener('change', async e => {
+      if (e.target.files?.length) await importDatasetFromFolders(e.target.files);
+      e.target.value = '';
+    });
+  }
+  if (classFolderInput) {
+    classFolderInput.addEventListener('change', async e => {
+      if (pendingClassFolderId !== null && e.target.files?.length) {
+        await importClassFolderFiles(pendingClassFolderId, e.target.files);
+      }
+      pendingClassFolderId = null;
+      e.target.value = '';
+    });
+  }
   
   function readFile(file) {
     const reader = new FileReader();

@@ -18,6 +18,7 @@ export async function loadMobileNet() {
   setPipe('load');
   setStatus('⏳ Loading MobileNet… first load may take ~10 seconds.');
   const addClassBtn = document.getElementById('addClassBtn');
+  const importDatasetBtn = document.getElementById('importDatasetBtn');
   try {
     store.mobilenetModel = await mobilenet.load();
     if (store.mobilenetModel.model && store.mobilenetModel.model.layers) {
@@ -28,6 +29,7 @@ export async function loadMobileNet() {
     document.getElementById('ps-load').classList.replace('active','done');
     setStatus('✅ MobileNet ready. Collect samples for each class to get started.', 'ready');
     if (addClassBtn) addClassBtn.disabled = false;
+    if (importDatasetBtn) importDatasetBtn.disabled = false;
     
     // Default 2 classes
     addNewClass('Class A');

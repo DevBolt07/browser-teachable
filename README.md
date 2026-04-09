@@ -29,7 +29,7 @@ The system acts as a complete lifecycle, connecting three distinct organizationa
 
 ### 2️⃣ The Claimant (Zero-Trust Link)
 * **Goal:** Scale data gathering securely without agent dispatch.
-* **Flow:** A unique `customer-link.html` URL is sent to the claimant. The app disables file managers entirely and locks onto the environment camera. The claimant walks around the damaged vehicle. Once the AI hits a **>85% confidence threshold**, it *auto-captures* the frame, injects a simulated Deep-Learning Heatmap and a GPS geolocation-stamp, and submits the claim.
+* **Flow:** A unique `customer-link.html` URL is sent to the claimant. The app disables file managers entirely and locks onto the environment camera. The claimant walks around the damaged vehicle. Once the AI hits a **>85% confidence threshold**, it *auto-captures* the frame, injects a simulated Deep-Learning Heatmap and a GPS geolocation-stamp, auto-submits the claim to the surveyor inbox, and still lets the claimant download a PDF copy.
 
 ### 3️⃣ The Surveyor (Agent Portal)
 * **Goal:** Human-in-the-loop validation & Enterprise Reporting.
