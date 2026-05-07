@@ -122,8 +122,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('addClassBtn').addEventListener('click', () => addNewClass());
   
-  document.getElementById('trainBtn').addEventListener('click', trainModel);
-  document.getElementById('trainBtn').addEventListener('click', () => refreshWorkflowStep('train'));
+  document.getElementById('trainBtn').addEventListener('click', () => {
+    trainModel();
+    refreshWorkflowStep('train');
+    const chartsRow = document.getElementById('charts-row');
+    if (chartsRow) {
+      chartsRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
   
   document.getElementById('predictImgBtn').addEventListener('click', () => {
     refreshWorkflowStep('predict');

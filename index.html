@@ -96,31 +96,7 @@
         </div>
       </div>
       <img id="preview" alt="preview"/>
-      <div id="datasetStudio" class="dataset-studio" style="display:none;">
-        <div class="studio-head">
-          <div>
-            <div class="studio-title">Dataset Studio</div>
-            <div class="studio-sub">Drag on the image to crop, tune lighting, then label it.</div>
-          </div>
-          <button class="btn btn-outline btn-xs" id="resetEditBtn">Reset</button>
-        </div>
-        <canvas id="datasetCanvas" class="dataset-canvas"></canvas>
-        <div class="edit-grid">
-          <label class="edit-control">
-            <span>Brightness <b id="brightnessVal">100%</b></span>
-            <input type="range" id="editBrightness" min="50" max="150" value="100">
-          </label>
-          <label class="edit-control">
-            <span>Contrast <b id="contrastVal">100%</b></span>
-            <input type="range" id="editContrast" min="50" max="160" value="100">
-          </label>
-        </div>
-        <div class="studio-actions">
-          <button class="btn btn-outline btn-sm" id="applyCropBtn">Apply Crop</button>
-          <select id="labelClassSelect" class="label-select" aria-label="Select label class"></select>
-          <button class="btn btn-primary btn-sm" id="addEditedSampleBtn" disabled>Add Labeled Sample</button>
-        </div>
-      </div>
+
     </div>
 
     <!-- Webcam card -->
@@ -139,7 +115,7 @@
         🏷 Classification Tiers <span class="step-badge">STEP 3</span>
       </div>
       <div id="classes-wrap"></div>
-      <button class="btn btn-primary btn-sm studio-open-btn" id="openStudioBtn" disabled>Open Dataset Studio</button>
+
       <button id="addClassBtn" disabled>＋ Add Class &nbsp;<span style="opacity:0.5;font-size:0.7rem">(max 12)</span></button>
     </div>
 
@@ -205,61 +181,8 @@
       </div>
     </div>
 
-    <!-- Training charts -->
-    <div class="charts-row">
-      <div class="chart-box">
-        <h3>📉 Training Loss</h3>
-        <canvas id="lossChart"></canvas>
-      </div>
-      <div class="chart-box">
-        <h3>📈 Training Accuracy</h3>
-        <canvas id="accChart"></canvas>
-      </div>
-    </div>
-
     <!-- Confidence timeline -->
     <div id="timeline-card">
-
-    <!-- Epoch Replay Slider -->
-    <div id="replay-card">
-      <h3>🎞 Epoch Replay
-        <span style="font-size:0.68rem;color:#a0aec0;font-weight:400;text-transform:none;">— watch the model learn, epoch by epoch</span>
-      </h3>
-      <div class="replay-subtitle">
-        Scrub the slider to see how the model's prediction changed as it trained. Upload a test image or use your webcam snapshot.
-      </div>
-
-      <!-- Image source row -->
-      <div class="replay-source-row">
-        <img id="replayThumb" alt="test image"/>
-        <div class="replay-source-info" id="replaySourceInfo">
-          No test image selected. Upload an image above, then click "Use Uploaded Image".
-        </div>
-        <button class="btn btn-outline btn-sm" id="replayUseUpload" disabled>🖼 Use Uploaded Image</button>
-        <button class="btn btn-outline btn-sm" id="replaySnap" disabled>📷 Snap Webcam</button>
-      </div>
-
-      <!-- Slider row -->
-      <div class="replay-slider-row">
-        <span class="epoch-label" id="epochLabel">Epoch 1</span>
-        <input type="range" id="epochSlider" min="1" max="25" value="1" step="1" disabled/>
-        <span class="epoch-label" style="text-align:right;" id="epochEndLabel">/ 25</span>
-      </div>
-
-      <!-- Play controls -->
-      <div class="replay-controls">
-        <button class="btn btn-primary btn-sm" id="replayPlayBtn" disabled>▶ Auto-Play</button>
-        <button class="btn btn-stop btn-sm" id="replayStopBtn" disabled>⏹ Stop</button>
-        <button class="btn btn-outline btn-sm" id="replayResetBtn" disabled>⏮ Reset</button>
-      </div>
-
-      <!-- Prediction bars at this epoch -->
-      <div class="replay-bars" id="replayBars"></div>
-
-      <!-- Insight sentence -->
-      <div id="replayInsight">Train the model first, then select a test image to begin.</div>
-    </div>
-
       <h3>⏱ Confidence Timeline &nbsp;<span style="font-size:0.68rem;color:#a0aec0;font-weight:400;text-transform:none;">— live prediction history</span></h3>
       <canvas id="timelineChart"></canvas>
     </div>
@@ -309,6 +232,58 @@
           <div class="ins-sub">Your classifier<br>probability per class</div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- Epoch Replay Slider -->
+    <div id="replay-card">
+      <h3>🎞 Epoch Replay
+        <span style="font-size:0.68rem;color:#a0aec0;font-weight:400;text-transform:none;">— watch the model learn, epoch by epoch</span>
+      </h3>
+      <div class="replay-subtitle">
+        Scrub the slider to see how the model's prediction changed as it trained. Upload a test image or use your webcam snapshot.
+      </div>
+
+      <!-- Image source row -->
+      <div class="replay-source-row">
+        <img id="replayThumb" alt="test image"/>
+        <div class="replay-source-info" id="replaySourceInfo">
+          No test image selected. Upload an image above, then click "Use Uploaded Image".
+        </div>
+        <button class="btn btn-outline btn-sm" id="replayUseUpload" disabled>🖼 Use Uploaded Image</button>
+        <button class="btn btn-outline btn-sm" id="replaySnap" disabled>📷 Snap Webcam</button>
+      </div>
+
+      <!-- Slider row -->
+      <div class="replay-slider-row">
+        <span class="epoch-label" id="epochLabel">Epoch 1</span>
+        <input type="range" id="epochSlider" min="1" max="25" value="1" step="1" disabled/>
+        <span class="epoch-label" style="text-align:right;" id="epochEndLabel">/ 25</span>
+      </div>
+
+      <!-- Play controls -->
+      <div class="replay-controls">
+        <button class="btn btn-primary btn-sm" id="replayPlayBtn" disabled>▶ Auto-Play</button>
+        <button class="btn btn-stop btn-sm" id="replayStopBtn" disabled>⏹ Stop</button>
+        <button class="btn btn-outline btn-sm" id="replayResetBtn" disabled>⏮ Reset</button>
+      </div>
+
+      <!-- Prediction bars at this epoch -->
+      <div class="replay-bars" id="replayBars"></div>
+
+      <!-- Insight sentence -->
+      <div id="replayInsight">Train the model first, then select a test image to begin.</div>
+    </div>
+
+    <!-- Training charts -->
+    <div class="charts-row" id="charts-row">
+      <div class="chart-box">
+        <h3>📉 Training Loss</h3>
+        <canvas id="lossChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>📈 Training Accuracy</h3>
+        <canvas id="accChart"></canvas>
       </div>
     </div>
 
