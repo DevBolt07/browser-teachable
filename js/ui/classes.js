@@ -207,7 +207,7 @@ export function addSampleFromImage(id) {
   const emb = extractEmbedding(preview);
   if (!emb) return;
   cls.embeddings.push(emb);
-  cls.thumbs.push(captureThumbnail(preview));
+  cls.thumbs.push(preview.src);
   updateCountEl(id);
   finalizeSampleUpdates(`Added to "${cls.name}" â€” ${cls.embeddings.length} sample${cls.embeddings.length > 1 ? 's' : ''}.`);
 }
@@ -236,7 +236,7 @@ export async function addSamplesFromFiles(id, files, options = {}) {
         continue;
       }
       cls.embeddings.push(emb);
-      cls.thumbs.push(captureThumbnail(img));
+      cls.thumbs.push(img.src);
       added++;
       if (added === 1 || added % 10 === 0 || i === imageFiles.length - 1) {
         updateCountEl(id);

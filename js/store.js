@@ -62,6 +62,6 @@ export const PALETTE = [
 
 export const MAX_CLASSES = 12;
 export const EPOCHS = 25;
-export const THUMB_SIZE = 48;
+export const THUMB_SIZE = 224;
 export const THUMB_MAX = 12;
 export const timelineMax = 40;

@@ -3,7 +3,7 @@
 <head> 
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ClaimLens AI</title>
+  <title>ModelForge Studio</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -16,8 +16,8 @@
   <div class="header-left">
     <div class="logo">🛡️</div>
     <div>
-      <h1>ClaimLens AI</h1>
-      <p>Enterprise Damage Risk Prototyping Lab</p>
+      <h1>ModelForge Studio</h1>
+      <p>No-Code Model Training Workspace</p>
     </div>
   </div>
   <div style="display:flex; gap: 10px; align-items:center;">
@@ -43,12 +43,42 @@
   <div class="p-step" id="ps-predict">🎯 Predict</div>
 </div>
 
+<section id="guidedWorkflow" class="guided-workflow" aria-label="Build workflow">
+  <div class="workflow-track">
+    <button class="workflow-step active" data-step="upload" type="button">
+      <span>Upload</span>
+      <span class="workflow-line"></span>
+      <span class="workflow-dot"></span>
+      <span class="workflow-go">Go</span>
+    </button>
+    <button class="workflow-step" data-step="label" type="button">
+      <span>Label</span>
+      <span class="workflow-line"></span>
+      <span class="workflow-dot"></span>
+      <span class="workflow-go">Go</span>
+    </button>
+    <button class="workflow-step" data-step="train" type="button">
+      <span>Train</span>
+      <span class="workflow-line"></span>
+      <span class="workflow-dot"></span>
+      <span class="workflow-go">Go</span>
+    </button>
+    <button class="workflow-step" data-step="predict" type="button">
+      <span>Predict</span>
+      <span class="workflow-line"></span>
+      <span class="workflow-dot"></span>
+      <span class="workflow-go">Go</span>
+    </button>
+  </div>
+  <div class="workflow-hint" id="workflowHint">Start by uploading one image or importing a dataset folder.</div>
+</section>
+
 <main>
   <!-- ══ LEFT COLUMN ════════════════════════════════════════ -->
   <div class="left-col">
 
     <!-- Upload card -->
-    <div class="card">
+    <div class="card" id="uploadCard">
       <div class="card-title">
         🖼 Upload Image <span class="step-badge">STEP 1</span>
       </div>
@@ -66,6 +96,31 @@
         </div>
       </div>
       <img id="preview" alt="preview"/>
+      <div id="datasetStudio" class="dataset-studio" style="display:none;">
+        <div class="studio-head">
+          <div>
+            <div class="studio-title">Dataset Studio</div>
+            <div class="studio-sub">Drag on the image to crop, tune lighting, then label it.</div>
+          </div>
+          <button class="btn btn-outline btn-xs" id="resetEditBtn">Reset</button>
+        </div>
+        <canvas id="datasetCanvas" class="dataset-canvas"></canvas>
+        <div class="edit-grid">
+          <label class="edit-control">
+            <span>Brightness <b id="brightnessVal">100%</b></span>
+            <input type="range" id="editBrightness" min="50" max="150" value="100">
+          </label>
+          <label class="edit-control">
+            <span>Contrast <b id="contrastVal">100%</b></span>
+            <input type="range" id="editContrast" min="50" max="160" value="100">
+          </label>
+        </div>
+        <div class="studio-actions">
+          <button class="btn btn-outline btn-sm" id="applyCropBtn">Apply Crop</button>
+          <select id="labelClassSelect" class="label-select" aria-label="Select label class"></select>
+          <button class="btn btn-primary btn-sm" id="addEditedSampleBtn" disabled>Add Labeled Sample</button>
+        </div>
+      </div>
     </div>
 
     <!-- Webcam card -->
@@ -79,11 +134,12 @@
     </div>
 
     <!-- Classes card -->
-    <div class="card">
+    <div class="card" id="labelCard">
       <div class="card-title">
         🏷 Classification Tiers <span class="step-badge">STEP 3</span>
       </div>
       <div id="classes-wrap"></div>
+      <button class="btn btn-primary btn-sm studio-open-btn" id="openStudioBtn" disabled>Open Dataset Studio</button>
       <button id="addClassBtn" disabled>＋ Add Class &nbsp;<span style="opacity:0.5;font-size:0.7rem">(max 12)</span></button>
     </div>
 
@@ -99,7 +155,7 @@
     </div>
 
     <!-- Train card -->
-    <div class="card">
+    <div class="card" id="trainCard">
       <div class="card-title">
         🏋️ Compile Model <span class="step-badge">STEP 4</span>
       </div>
@@ -133,7 +189,7 @@
   <div class="right-col">
 
     <!-- Prediction card -->
-    <div class="card">
+    <div class="card" id="predictCard">
       <div class="card-title">
         🎯 Prediction <span class="step-badge">STEP 4</span>
       </div>
@@ -336,7 +392,143 @@
   </div>
 </main>
 
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FULL-PAGE DATASET LABELING STUDIO MODAL                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="labelingStudioModal" class="labeling-modal" style="display:none;">
+  
+  <!-- Header -->
+  <div class="labeling-header">
+    <div class="labeling-title">
+      <h2>🏷️ Dataset Labeling Studio</h2>
+      <p id="labelingSubtitle">Label and edit your images</p>
+    </div>
+    <button class="btn btn-outline btn-sm" id="closeLabelingBtn" style="border-color:#cbd5e1;">✕ Close</button>
+  </div>
+
+  <!-- Content wrapper -->
+  <div class="labeling-content">
+    
+    <!-- Left panel: Image grid -->
+    <div class="labeling-grid-panel">
+      <div class="grid-header">
+        <h3>📸 Images</h3>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="labelSearchInput" placeholder="Search class..." style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; flex:1; max-width:150px;">
+          <select id="labelClassFilterSelect" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem;"></select>
+        </div>
+      </div>
+      <div class="labeling-grid" id="labelingGrid">
+        <div style="text-align:center; color:#a0aec0; padding:40px 20px;">No images yet. Upload a dataset to begin.</div>
+      </div>
+    </div>
+
+    <!-- Right panel: Image editor -->
+    <div class="labeling-editor-panel">
+      <div class="editor-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h3 id="selectedImageName">Select an image</h3>
+          <span id="selectedImageInfo" style="font-size:0.75rem; color:#a0aec0;"></span>
+        </div>
+        <div class="zoom-controls" style="display:flex; gap: 4px; align-items:center;">
+          <button class="btn btn-outline btn-xs" id="zoomOutBtn">🔍-</button>
+          <span id="zoomLabel" style="font-size: 0.8rem; display:flex; align-items:center; width:45px; justify-content:center;">300%</span>
+          <button class="btn btn-outline btn-xs" id="zoomInBtn">🔍+</button>
+        </div>
+      </div>
+
+      <!-- Canvas area -->
+      <div class="editor-canvas-wrapper" style="overflow: auto;">
+        <div id="canvasScaleWrapper" style="transform-origin: center center; transition: transform 0.2s; transform: scale(3);">
+          <canvas id="labelingEditCanvas" class="labeling-canvas" style="image-rendering: pixelated;"></canvas>
+        </div>
+      </div>
+
+      <!-- Image editing controls -->
+      <div class="editor-controls">
+        <div class="control-group">
+          <label>
+            <span><span>☀️ Brightness</span> <span id="labelBrightnessVal">100%</span></span>
+            <input type="range" id="labelBrightnessSlider" min="50" max="150" value="100">
+          </label>
+        </div>
+
+        <div class="control-group">
+          <label>
+            <span><span>🎨 Contrast</span> <span id="labelContrastVal">100%</span></span>
+            <input type="range" id="labelContrastSlider" min="50" max="160" value="100">
+          </label>
+        </div>
+
+        <div class="control-group">
+          <label>
+            <span><span>🌈 Saturation</span> <span id="labelSaturationVal">100%</span></span>
+            <input type="range" id="labelSaturationSlider" min="0" max="200" value="100">
+          </label>
+        </div>
+
+        <div class="control-group">
+          <label>
+            <span>🔄 Rotate</span>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-outline btn-xs" id="rotateLeftBtn">↶ -90°</button>
+              <button class="btn btn-outline btn-xs" id="rotateRightBtn">↷ +90°</button>
+            </div>
+          </label>
+        </div>
+
+        <div class="control-group">
+          <label>
+            <span>📏 Crop</span>
+            <p style="font-size:0.75rem; color:#718096; margin:4px 0;">Drag on canvas to select crop area</p>
+            <button class="btn btn-outline btn-sm" id="applyCropRegionBtn" style="width:100%;">Crop Selected</button>
+          </label>
+        </div>
+
+        <div class="control-group">
+          <label>
+            <span><span>🔘 Grayscale</span> <span id="filterGrayscaleVal">0%</span></span>
+            <input type="range" id="filterGrayscaleSlider" min="0" max="100" value="0">
+          </label>
+        </div>
+
+        <div class="control-group">
+          <label>
+            <span><span>🌫️ Blur</span> <span id="filterBlurVal">0px</span></span>
+            <input type="range" id="filterBlurSlider" min="0" max="20" value="0">
+          </label>
+        </div>
+
+        <div class="control-group">
+          <label>
+            <span><span>🌓 Invert (Binarize)</span> <span id="filterInvertVal">0%</span></span>
+            <input type="range" id="filterInvertSlider" min="0" max="100" value="0">
+          </label>
+        </div>
+
+        <div class="control-group">
+          <label>
+            <span>🏷️ Label Class</span>
+            <select id="labelingClassSelect" style="width:100%; padding:8px 10px; border:1.5px solid #e2e8f0; border-radius:6px; font-size:0.85rem;"></select>
+          </label>
+        </div>
+
+        <div class="editor-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
+          <button class="btn btn-outline" id="resetEditorsBtn" style="flex:1;">↻ Reset</button>
+          <button class="btn btn-outline" id="skipImageBtn" style="flex:1;">⏭ Skip</button>
+          <button class="btn btn-red" id="deleteImageBtn" style="flex:1;">🗑 Delete</button>
+        </div>
+        <div class="editor-actions" style="display:flex; gap:8px; margin-top:4px;">
+          <button class="btn btn-outline" id="saveAsCopyBtn" style="flex:1; border-color:#667eea; color:#667eea; font-weight:600;">➕ Save as Copy</button>
+          <button class="btn btn-primary" id="saveLabeledImageBtn" style="flex:1;">💾 Save & Replace</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module" src="js/main.js"></script>
+
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const exportBtn = document.getElementById('exportBtn');

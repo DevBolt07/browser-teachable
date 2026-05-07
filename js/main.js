@@ -18,10 +18,15 @@ import { resetTrainingCharts, initTimelineChart } from './visuals/charts.js';
 import { drawArchDiagram } from './visuals/architecture.js';
 import { inspectorDeactivate, inspectorActivate } from './visuals/inspector.js';
 import { setStatus, setPipe } from './utils.js';
+import { initDatasetStudio, setDatasetStudioImage, openDatasetStudio } from './ui/dataset-studio.js';
+import { setupGuidedWorkflow, refreshWorkflowStep } from './ui/guided-workflow.js';
+import { openLabelingModal } from './ui/labeling-studio.js';
 
 // ── Application Entry Point ──────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+  initDatasetStudio();
+  setupGuidedWorkflow();
   window.addSampleFromImage = addSampleFromImage;
   window.deleteClass        = deleteClass;
   window.clearClassSamples  = clearClassSamples;
@@ -35,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const datasetFolderInput = document.getElementById('datasetFolderInput');
   const classFolderInput = document.getElementById('classFolderInput');
   const importDatasetBtn = document.getElementById('importDatasetBtn');
+  const openStudioBtn = document.getElementById('openStudioBtn');
   const preview = document.getElementById('preview');
   let pendingClassFolderId = null;
 
@@ -52,12 +58,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (f && f.type.startsWith('image/')) readFile(f);
   });
   imageUpload.addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); });
+  if (openStudioBtn) {
+    openStudioBtn.addEventListener('click', () => {
+      openDatasetStudio();
+      refreshWorkflowStep('label');
+    });
+  }
   if (importDatasetBtn && datasetFolderInput) {
     importDatasetBtn.addEventListener('click', () => datasetFolderInput.click());
   }
   if (datasetFolderInput) {
     datasetFolderInput.addEventListener('change', async e => {
-      if (e.target.files?.length) await importDatasetFromFolders(e.target.files);
+      if (e.target.files?.length) {
+        await importDatasetFromFolders(e.target.files);
+        if (openStudioBtn) openStudioBtn.disabled = false;
+      }
+      refreshWorkflowStep('label');
       e.target.value = '';
     });
   }
@@ -65,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     classFolderInput.addEventListener('change', async e => {
       if (pendingClassFolderId !== null && e.target.files?.length) {
         await importClassFolderFiles(pendingClassFolderId, e.target.files);
+        if (openStudioBtn) openStudioBtn.disabled = false;
       }
       pendingClassFolderId = null;
       e.target.value = '';
@@ -77,8 +94,11 @@ document.addEventListener('DOMContentLoaded', () => {
       preview.src = ev.target.result;
       preview.style.display = 'block';
       preview.onload = async () => {
+        if (openStudioBtn) openStudioBtn.disabled = false;
         setPipe('collect');
-        setStatus('🖼 Image loaded. Click "Add Image" under any class to label it.', 'ready');
+        setDatasetStudioImage(preview.src);
+        setStatus('Image loaded. Edit it in Dataset Studio, then add it to a label.', 'ready');
+        refreshWorkflowStep('label');
         import('./ui/classes.js').then((classes) => {
              classes.updateAllButtons();
         });
@@ -92,11 +112,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Global Button Listeners ────────────────────────────────────
 
+  const labelTabBtn = document.querySelector('[data-step="label"]');
+  if (labelTabBtn) {
+    labelTabBtn.addEventListener('click', () => {
+      openLabelingModal();
+      refreshWorkflowStep('label');
+    });
+  }
+
   document.getElementById('addClassBtn').addEventListener('click', () => addNewClass());
   
   document.getElementById('trainBtn').addEventListener('click', trainModel);
+  document.getElementById('trainBtn').addEventListener('click', () => refreshWorkflowStep('train'));
   
-  document.getElementById('predictImgBtn').addEventListener('click', () => predictImage(preview));
+  document.getElementById('predictImgBtn').addEventListener('click', () => {
+    refreshWorkflowStep('predict');
+    predictImage(preview);
+  });
   
   document.getElementById('startWebcamBtn').addEventListener('click', startWebcam);
 
@@ -106,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
   startLiveBtn.addEventListener('click', () => {
     if (!store.modelTrained) return setStatus('Train the model first.', 'error');
     if (!store.webcamReady)  return setStatus('Start the webcam first.', 'error');
+    refreshWorkflowStep('predict');
     stopLive();
     stopLiveBtn.disabled  = false;
     startLiveBtn.disabled = true;
@@ -148,6 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const qb = document.getElementById('qualityBody');
     if (qb) qb.innerHTML = '<div class="qd-empty">Collect samples to see quality analysis here.</div>';
     preview.style.display = 'none'; preview.src = '';
+    if (openStudioBtn) openStudioBtn.disabled = true;
+    const datasetStudio = document.getElementById('datasetStudio');
+    if (datasetStudio) datasetStudio.style.display = 'none';
     document.getElementById('predWinner').style.display = 'none';
     const whyBox = document.getElementById('whyBox');
     if (whyBox) { whyBox.style.display = 'none'; whyBox.textContent = ''; }
@@ -165,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     buildClassifier(2);
     addNewClass('Class A'); addNewClass('Class B');
     drawArchDiagram();
+    refreshWorkflowStep('upload');
   });
 
   // ── Feature Specific Handlers ──────────────────────────────────
@@ -251,5 +288,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Final Init
   loadMobileNet();
+  refreshWorkflowStep('upload');
 
 });
