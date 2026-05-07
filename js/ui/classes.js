@@ -183,7 +183,7 @@ export function renderPredBars() {
           <span style="width:8px;height:8px;border-radius:50%;background:${p.color};display:inline-block;"></span>
           ${cls.name}
         </span>
-        <span id="pct-${cls.id}" style="font-size:0.78rem;font-family:monospace;">â€”</span>
+        <span id="pct-${cls.id}" style="font-size:0.78rem;font-family:monospace;">-</span>
       </div>
       <div class="pred-track">
         <div class="pred-fill" id="bar-${cls.id}" style="background:${p.color};"></div>
@@ -209,7 +209,7 @@ export function addSampleFromImage(id) {
   cls.embeddings.push(emb);
   cls.thumbs.push(preview.src);
   updateCountEl(id);
-  finalizeSampleUpdates(`Added to "${cls.name}" â€” ${cls.embeddings.length} sample${cls.embeddings.length > 1 ? 's' : ''}.`);
+  finalizeSampleUpdates(`Added to "${cls.name}" - ${cls.embeddings.length} sample${cls.embeddings.length > 1 ? 's' : ''}.`);
 }
 
 export async function addSamplesFromFiles(id, files, options = {}) {
@@ -241,7 +241,7 @@ export async function addSamplesFromFiles(id, files, options = {}) {
       if (added === 1 || added % 10 === 0 || i === imageFiles.length - 1) {
         updateCountEl(id);
         updateStats();
-        setStatus(`Importing "${cls.name}" â€” ${i + 1}/${imageFiles.length}`, 'ready');
+        setStatus(`Importing "${cls.name}" - ${i + 1}/${imageFiles.length}`, 'ready');
         await new Promise(resolve => setTimeout(resolve, 0));
       }
     } catch {
@@ -306,6 +306,6 @@ export async function importDatasetFromFolders(files) {
 
   renderClasses();
   finalizeSampleUpdates(
-    `Dataset import complete â€” ${totalAdded} image${totalAdded === 1 ? '' : 's'} added across ${grouped.size} class${grouped.size === 1 ? '' : 'es'}${totalSkipped ? ` (${totalSkipped} skipped)` : ''}.`
+    `Dataset import complete - ${totalAdded} image${totalAdded === 1 ? '' : 's'} added across ${grouped.size} class${grouped.size === 1 ? '' : 'es'}${totalSkipped ? ` (${totalSkipped} skipped)` : ''}.`
   );
 }

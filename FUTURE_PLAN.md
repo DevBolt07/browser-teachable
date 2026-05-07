@@ -1,53 +1,49 @@
-# 🚀 ClaimLens AI — Platform Evolution & Future Plan
+# 🚀 ModelForge AI Studio — Platform Evolution & Future Roadmap
 
-This document outlines the strategic roadmap for transitioning **ClaimLens AI** from a prototype InsurTech application into a fully-fledged, modular **Edge AI B2B Platform**.
+This document outlines the strategic roadmap for transitioning **ModelForge AI Studio** from a browser-based prototype into a fully-fledged, modular **Enterprise Edge AI Platform**.
 
-The following milestones are designed for future sprints to enhance neural network explainability (XAI), boost deep-learning accuracy through automated dataset augmentation, and seamlessly decouple the core engine from a single industry.
+The following milestones are designed for future sprints to enhance neural network explainability (XAI), automate deep-learning augmentation pipelines, and expand model export architectures.
 
 ---
 
-## 📅 Milestone 1: True Explainable AI (XAI) Engine
-**Objective:** Replace UI-based heuristic heatmaps with mathematically verifiable algorithmic transparency.
+## 📅 Milestone 1: Automated Programmatic Data Augmentation
+**Objective:** Scale the newly integrated Manual Labeling Studio into a fully programmatic, zero-click augmentation pipeline.
 
 ### The Problem
-Currently, the customer-facing portal generates simulated radial heatmaps to visually ground the AI's logic. As per strict enterprise compliance standards, underwriters require mathematical proof of *why* the AI flagged a specific region as "Damage" before approving payouts.
+We have successfully deployed a comprehensive **Dataset Labeling Studio**, allowing Data Scientists to manually preprocess, filter, and augment data (via the "Save as Copy" feature). However, for enterprise-scale deployments with thousands of images, requiring humans to manually adjust sliders for every image is an operational bottleneck.
+
+### The Implementation Strategy (Web Worker Synthetic Multiplication)
+We will expand the existing Studio to support "One-Click Batch Augmentation" leveraging Web Workers and `<canvas>` operations.
+* **Mechanism:** When an administrator uploads a batch of training images, they can select an "Auto-Augment" policy. The JavaScript engine will asynchronously generate hidden synthetic variations in the background:
+  1. Horizontal/Vertical Flips
+  2. Procedural Rotation bounds (`±15 degrees skew`)
+  3. Gamma/Brightness Matrix Shifts (Simulating environmental changes)
+  4. Gaussian Blur Injection (Simulating low-quality camera sensors)
+* **Result:** A baseline of 100 uploaded images will automatically expand to 500 diverse tensors within seconds. This eliminates the human bottleneck, exponentially reduces *Model Overfitting*, and creates an incredibly resilient logic engine at zero cloud cost.
+
+---
+
+## 📅 Milestone 2: True Explainable AI (XAI) Engine
+**Objective:** Integrate algorithmic transparency to mathematically verify Neural Network decisions.
+
+### The Problem
+When building AI for critical industries (Healthcare, Manufacturing, Fintech), users need mathematical proof of *why* the AI flagged a specific class. Black-box predictions are often rejected by compliance teams.
 
 ### The Implementation Strategy (Occlusion Sensitivity Mapping)
-We will introduce a purely client-side XAI Engine inside the **Agent Portal**:
-* **Mechanism:** The internal algorithm will iteratively mask (occlude) small sections of the captured evidence image (`32x32 pixel patches`) using a sliding window loop, parsing each occluded frame through the loaded `MobileNet` model.
-* **Math Trigger:** If blocking a specific coordinate chunk causes the model's damage-confidence score to suddenly crash (e.g., dropping from `92%` to `31%`), that exact coordinate is mathematically verified as the *critical feature point* (the actual dent or scratch).
-* **Delivery:** A color-coded, high-fidelity matrix will map these drops in confidence, generating a 100% genuine, data-driven analytical Heatmap for Surveyor PDF Reports.
+We will introduce a purely client-side XAI Engine inside the Studio:
+* **Mechanism:** The internal algorithm will iteratively mask (occlude) small sections of the captured image (`32x32 pixel patches`) using a sliding window loop, parsing each occluded frame through the loaded `MobileNet` model.
+* **Math Trigger:** If blocking a specific coordinate chunk causes the model's target-confidence score to suddenly crash, that exact coordinate is mathematically verified as the *critical feature point*.
+* **Delivery:** A color-coded, high-fidelity matrix will map these drops in confidence, generating a genuine, data-driven analytical Heatmap overlaid on the user's prediction UI.
 
 ---
 
-## 📅 Milestone 2: Automated Edge Data Augmentation
-**Objective:** Maximize Edge AI accuracy without demanding massive, manual datasets from Data Scientists.
+## 📅 Milestone 3: Multi-Architecture Model Exports
+**Objective:** Break free from TensorFlow.js lock-in by supporting industry-standard universal model formats.
 
 ### The Problem
-Building robust models via the Admin Lab (`index.html`) requires dozens of high-quality, diverse images per classification class. However, Field Agents often lack sufficient training data when rapidly prototyping new risk categories.
+Currently, the studio exports models strictly as TensorFlow.js Weights (`.bin`) and Topology (`.json`). While excellent for web deployment, many hardware systems (like Raspberry Pi, edge cameras, or iOS apps) require different formats.
 
-### The Implementation Strategy (Client-side Multiplication)
-We will integrate an automated pre-processing Augmentation Engine leveraging HTML5 WebGL and `<canvas>` operations prior to the `TFJS` embedding extraction. 
-* **Mechanism:** When an administrator uploads a single training image, the JavaScript engine will synchronously generate 4 hidden synthetic variations:
-  1. Horizontal Flip (`ctx.scale(-1, 1)`)
-  2. Diagonal Rotation (`±15 degrees skew`)
-  3. Gamma/Brightness Shift (Simulating night-time / harsh sunlight glare)
-  4. Slight Gaussian Blur (Simulating low-quality customer smartphone cameras)
-* **Result:** A baseline of 10 uploaded images will be synthetically expanded to 50 diverse tensors. This exponentially reduces *Model Overfitting*, creating an incredibly resilient logic engine.
-
----
-
-## 📅 Milestone 3: Dynamic Multi-Industry Architecture
-**Objective:** Systematically abstract the specific "Automotive Insurance" logic, proving the application can be white-labeled for immense adjacent enterprise markets.
-
-### The Problem
-The current frontend hardcodes specific terminology like "Vehicle Inspection", "Surveyor", and "Rescan Car". To scale the B2B SaaS pitch, the core Neural Engine needs to demonstrate that it is mathematically agnostic to the domain it operates in.
-
-### The Implementation Strategy (JSON Config Driven Matrix)
-Integration of a **Platform Bootloader** drop-down on the Login Gateway (`login.html`), pivoting the deployment across multiple sectors:
-
-1. **InsurTech Mode (Default):** Auto Claims, Dents, Agent Field Dispatch.
-2. **AgriTech Mode:** Crop Disease Scanning, Leaf Discoloration, Harvest Quality Assessment.
-3. **Manufacturing Mode:** Assembly line defect detection, PCB flaw spotting.
-
-* **Mechanism:** Upon selection, a universal `themeConfig` state object injects a new dictionary of strings and CSS token overrides into the central DOM. The underlying `TensorFlow.js` pipeline computationally performs the exact same mathematical operations. This perfectly illustrates the massive scalability and valuation of our underlying Edge AI processing core.
+### The Implementation Strategy
+Integration of an **Export Pipeline Converter**:
+1. **ONNX Format Export:** Converting the trained TFJS graph into the Open Neural Network Exchange (ONNX) format, allowing seamless import into PyTorch, Scikit-learn, and C++ inference engines.
+2. **TFLite Export:** Quantizing the model (reducing float32 to int8) to aggressively shrink file size and export as a `.tflite` flatbuffer, perfectly optimized for Android and microcontrollers.
