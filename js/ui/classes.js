@@ -41,13 +41,15 @@ function readImageFile(file) {
   });
 }
 
-function finalizeSampleUpdates(statusMsg) {
+export function finalizeSampleUpdates(statusMsg) {
   updateStats();
   checkTrainReady();
   scheduleDistanceUpdate();
   scheduleQualityUpdate();
-  setStatus(statusMsg, 'ready');
+  if (statusMsg) setStatus(statusMsg, 'ready');
 }
+
+
 
 function ensureClass(name) {
   const existing = findClassByName(name);
@@ -74,6 +76,7 @@ export function addNewClass(name) {
     name: name || `Class ${String.fromCharCode(65 + store.classes.length)}`,
     embeddings: [],
     thumbs: [],
+    isAugmented: [], // Parallel to thumbs
     pal
   };
   store.classes.push(cls);
@@ -99,11 +102,13 @@ export function clearClassSamples(id) {
   cls.embeddings.forEach(t => t.dispose());
   cls.embeddings = [];
   cls.thumbs = [];
+  cls.isAugmented = [];
   updateCountEl(id);
   updateStats();
   checkTrainReady();
   updateDistancePanelWrap();
   scheduleQualityUpdate();
+  finalizeSampleUpdates(`Cleared all samples for "${cls.name}".`);
 }
 
 export function updateCountEl(id) {
@@ -136,6 +141,8 @@ export function renderClasses() {
           style="border-color:${p.border};color:${p.text}">Folder</button>
         <button class="btn btn-xs btn-outline" id="collectBtn-${cls.id}" onclick="window.startCollection(${cls.id})" disabled
           style="border-color:${p.border};color:${p.text}">Webcam</button>
+        <button class="btn btn-xs" onclick="window.augmentClass(${cls.id})"
+          style="background:#f7fafc;border:1.5px solid #e2e8f0;color:#8b5cf6;">✨ Augment</button>
         <button class="btn btn-xs" onclick="window.clearClassSamples(${cls.id})"
           style="background:#f7fafc;border:1.5px solid #e2e8f0;color:#718096;">Clear</button>
       </div>
@@ -208,6 +215,7 @@ export function addSampleFromImage(id) {
   if (!emb) return;
   cls.embeddings.push(emb);
   cls.thumbs.push(preview.src);
+  cls.isAugmented.push(false);
   updateCountEl(id);
   finalizeSampleUpdates(`Added to "${cls.name}" - ${cls.embeddings.length} sample${cls.embeddings.length > 1 ? 's' : ''}.`);
 }
@@ -237,6 +245,7 @@ export async function addSamplesFromFiles(id, files, options = {}) {
       }
       cls.embeddings.push(emb);
       cls.thumbs.push(img.src);
+      cls.isAugmented.push(false);
       added++;
       if (added === 1 || added % 10 === 0 || i === imageFiles.length - 1) {
         updateCountEl(id);

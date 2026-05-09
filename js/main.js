@@ -12,6 +12,7 @@ import { predictImage, performLivePredictionStep } from './ml/prediction.js';
 import { addNewClass, clearClassSamples, deleteClass, addSampleFromImage, importClassFolderFiles, importDatasetFromFolders } from './ui/classes.js';
 import { startWebcam, startCollection, stopCollection } from './ui/webcam.js';
 import { setReplaySource, stopReplayAuto, scrubToEpoch, restoreFinalWeights } from './ui/replay.js';
+import { runAutoAugment } from './ml/augment.js';
 import { toggleInternals } from './visuals/internals.js';
 import { exportModel, handleModelImport } from './ml/persistence.js';
 import { resetTrainingCharts, initTimelineChart } from './visuals/charts.js';
@@ -28,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initDatasetStudio();
   setupGuidedWorkflow();
   window.addSampleFromImage = addSampleFromImage;
+  window.augmentClass       = (id) => runAutoAugment(id);
   window.deleteClass        = deleteClass;
   window.clearClassSamples  = clearClassSamples;
   window.startCollection    = startCollection;
@@ -387,6 +389,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const importFiles = document.getElementById('importFiles');
   if (importFiles) importFiles.addEventListener('change', handleModelImport);
+
+  const autoAugmentBtn = document.getElementById('autoAugmentBtn');
+  if (autoAugmentBtn) autoAugmentBtn.addEventListener('click', runAutoAugment);
 
   // Final Init
   loadMobileNet();

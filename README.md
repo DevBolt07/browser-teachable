@@ -18,14 +18,21 @@ By bringing neural network computation directly to the client's device using `Te
 
 ## 🏗️ Core Platform Features
 
-### 1️⃣ Advanced Dataset Labeling Studio
+### 1️⃣ Advanced Dataset Labeling & Augmentation Studio
 Data quality defines AI accuracy. ModelForge features a built-in, professional-grade preprocessing suite:
 * **Visual Transformations:** Adjust brightness, contrast, and saturation on the fly.
-* **Image Filtering:** Apply Grayscale, Blur, and Binarize (Invert) filters to isolate features.
 * **Spatial Cropping:** Drag-and-drop crop boxes to remove background noise and focus the model on the subject.
-* **Data Augmentation:** Use the **"Save as Copy"** workflow to instantly generate and inject synthetic variations of images into your dataset, drastically reducing overfitting without writing a single line of augmentation code.
+* **Granular 3-Tier Auto-Augmentation:** A procedural data-synthesis engine that combats model overfitting by instantly generating robust image variations (flips, brightness shifts, blurs). Features three levels of control:
+  1. **Global:** 1-click massive synthetic expansion of the entire dataset.
+  2. **Class-Level:** Augment specific target classes to fix dataset imbalances.
+  3. **Image-Level:** A visual, interactive Studio UI to preview, accept, or reject AI-generated variants of a single target image.
 
-### 2️⃣ Zero-Config Edge Training
+### 2️⃣ Explainable AI (XAI) Heatmap Engine
+ModelForge natively integrates algorithmic transparency, a crucial feature for enterprise AI compliance.
+* **Occlusion Sensitivity Mapping:** The client-side XAI engine slides a masking window across the live inference stream, mathematically calculating which precise pixel clusters trigger the neural network's decision.
+* **High-Fidelity Visual Overlays:** Generates a real-time, color-coded heatmap over the webcam feed or uploaded image, proving *why* the AI made its prediction.
+
+### 3️⃣ Zero-Config Edge Training
 * **Transfer Learning:** Train a custom Dense layer atop the frozen MobileNet baseline directly in your browser.
 * **Real-time Monitoring:** Watch loss and accuracy metrics converge in real-time via interactive charts.
 * **Model Export:** Export the resulting Weights and JSON Topology directly to your local file system for deployment in any JS/Node environment.

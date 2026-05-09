@@ -90,7 +90,10 @@ export function startCollection(id) {
     if (!c) { stopCollection(); return; }
     c.embeddings.push(emb);
     thumbCounter++;
-    if (thumbCounter % 5 === 1) c.thumbs.push(captureThumbnail(webcamEl));
+    if (thumbCounter % 5 === 1) {
+      c.thumbs.push(captureThumbnail(webcamEl));
+      c.isAugmented.push(false);
+    }
     updateCountEl(id);
     updateStats();
     checkTrainReady();

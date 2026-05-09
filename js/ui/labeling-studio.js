@@ -1,5 +1,6 @@
 import { store } from '../store.js';
 import { extractEmbedding } from '../ml/dataset.js';
+import { runAutoAugment } from '../ml/augment.js';
 
 let labelingState = {
     allImages: [],
@@ -41,6 +42,7 @@ const filterInvertSlider = document.getElementById('filterInvertSlider');
 const skipImageBtn = document.getElementById('skipImageBtn');
 const deleteImageBtn = document.getElementById('deleteImageBtn');
 const saveAsCopyBtn = document.getElementById('saveAsCopyBtn');
+const augmentSelectedBtn = document.getElementById('augmentSelectedBtn');
 
 let currentTransforms = {
     brightness: 100,
@@ -93,6 +95,125 @@ export function openLabelingModal() {
         saveAsCopyBtn?.addEventListener('click', saveAsCopy);
         skipImageBtn?.addEventListener('click', skipImage);
         deleteImageBtn?.addEventListener('click', deleteCurrentImage);
+        
+        const augmentReviewBox = document.getElementById('augmentReviewBox');
+        const augmentReviewGrid = document.getElementById('augmentReviewGrid');
+        const acceptAugmentsBtn = document.getElementById('acceptAugmentsBtn');
+        const cancelAugmentsBtn = document.getElementById('cancelAugmentsBtn');
+
+        let pendingAugments = []; // Array of DataURLs
+
+        augmentSelectedBtn?.addEventListener('click', async () => {
+            if (!currentOriginalImage || !currentOriginalImage.complete) return;
+            augmentSelectedBtn.disabled = true;
+            augmentSelectedBtn.textContent = '⏳ Generating...';
+            
+            pendingAugments = (await import('../ml/augment.js')).generateAugmentedVariants(currentOriginalImage);
+            
+            augmentReviewGrid.innerHTML = '';
+            pendingAugments.forEach((dataUrl, idx) => {
+                const wrapper = document.createElement('div');
+                wrapper.style.position = 'relative';
+                wrapper.style.display = 'inline-block';
+
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.style.height = '60px';
+                img.style.borderRadius = '4px';
+                img.style.cursor = 'pointer';
+                img.style.border = '2px solid transparent';
+                img.title = 'Click to preview on canvas';
+                img.onclick = () => {
+                    Array.from(augmentReviewGrid.children).forEach(c => c.firstChild.style.borderColor = 'transparent');
+                    img.style.borderColor = '#8b5cf6';
+                    
+                    const previewImg = new Image();
+                    previewImg.onload = () => {
+                        labelingEditCanvas.width = previewImg.naturalWidth;
+                        labelingEditCanvas.height = previewImg.naturalHeight;
+                        labelingEditCanvas.getContext('2d').drawImage(previewImg, 0, 0);
+                    };
+                    previewImg.src = dataUrl;
+                };
+
+                const delBtn = document.createElement('button');
+                delBtn.innerHTML = '✕';
+                delBtn.style.position = 'absolute';
+                delBtn.style.top = '-6px';
+                delBtn.style.right = '-6px';
+                delBtn.style.background = '#ef4444';
+                delBtn.style.color = 'white';
+                delBtn.style.border = 'none';
+                delBtn.style.borderRadius = '50%';
+                delBtn.style.width = '18px';
+                delBtn.style.height = '18px';
+                delBtn.style.fontSize = '10px';
+                delBtn.style.cursor = 'pointer';
+                delBtn.style.lineHeight = '1';
+                delBtn.style.padding = '0';
+                delBtn.title = 'Discard this variant';
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    pendingAugments = pendingAugments.filter(url => url !== dataUrl);
+                    wrapper.remove();
+                    if (pendingAugments.length === 0) {
+                        augmentReviewBox.style.display = 'none';
+                        augmentSelectedBtn.disabled = false;
+                        augmentSelectedBtn.textContent = '✨ Auto-Augment Selected Image';
+                        updateCanvasDisplay(); // Restore original
+                    }
+                };
+
+                wrapper.appendChild(img);
+                wrapper.appendChild(delBtn);
+                augmentReviewGrid.appendChild(wrapper);
+            });
+            
+            augmentReviewBox.style.display = 'block';
+        });
+
+        acceptAugmentsBtn?.addEventListener('click', async () => {
+            const current = labelingState.allImages[labelingState.currentImageIndex];
+            if (!current) return;
+            const cls = store.classes.find(c => c.id === current.classId);
+            if (!cls) return;
+
+            acceptAugmentsBtn.disabled = true;
+            acceptAugmentsBtn.textContent = '⏳ Saving...';
+
+            for (const dataUrl of pendingAugments) {
+                const img = new Image();
+                await new Promise(r => { img.onload = r; img.src = dataUrl; });
+                const emb = extractEmbedding(img);
+                if (emb) {
+                    cls.embeddings.push(emb);
+                    cls.thumbs.push(dataUrl);
+                    cls.isAugmented.push(true);
+                }
+            }
+
+            // Clean up
+            pendingAugments = [];
+            augmentReviewBox.style.display = 'none';
+            augmentSelectedBtn.disabled = false;
+            augmentSelectedBtn.textContent = '✨ Auto-Augment Selected Image';
+            acceptAugmentsBtn.disabled = false;
+            acceptAugmentsBtn.textContent = '✅ Accept All';
+
+            populateLabelingGrid(); // Refresh grid
+            const { updateCountEl, updateStats, checkTrainReady } = await import('./classes.js');
+            updateCountEl(current.classId);
+            updateStats();
+            checkTrainReady();
+        });
+
+        cancelAugmentsBtn?.addEventListener('click', () => {
+            pendingAugments = [];
+            augmentReviewBox.style.display = 'none';
+            augmentSelectedBtn.disabled = false;
+            augmentSelectedBtn.textContent = '✨ Auto-Augment Selected Image';
+            updateCanvasDisplay();
+        });
 
         labelingEditCanvas?.addEventListener('mousedown', startCrop);
         labelingEditCanvas?.addEventListener('mousemove', drawCropRect);
@@ -118,7 +239,7 @@ export function openLabelingModal() {
 
     labelingState.hasUnsavedChanges = false;
     labelingModal.style.display = 'flex';
-    setZoom(300); // Default zoom level to make small images larger
+    setZoom(100); // Default zoom level
     populateLabelingGrid();
 }
 

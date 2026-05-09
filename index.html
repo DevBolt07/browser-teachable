@@ -124,7 +124,10 @@
       </div>
       <div id="classes-wrap"></div>
 
-      <button id="addClassBtn" disabled>＋ Add Class &nbsp;<span style="opacity:0.5;font-size:0.7rem">(max 12)</span></button>
+      <div style="display:flex; justify-content:space-between; gap:10px; margin-top:10px;">
+        <button id="addClassBtn" style="flex:1;" disabled>＋ Add Class <span style="opacity:0.5;font-size:0.7rem">(max 12)</span></button>
+        <button id="autoAugmentBtn" class="btn btn-outline" style="flex:1; border-color:#8b5cf6; color:#8b5cf6;" disabled>✨ Auto-Augment Data</button>
+      </div>
     </div>
 
     <!-- Sample Quality Dashboard -->
@@ -550,6 +553,19 @@
           <button class="btn btn-outline" id="saveAsCopyBtn" style="flex:1; border-color:#667eea; color:#667eea; font-weight:600;">➕ Save as Copy</button>
           <button class="btn btn-primary" id="saveLabeledImageBtn" style="flex:1;">💾 Save & Replace</button>
         </div>
+        <div class="editor-actions" style="margin-top:4px;">
+          <button class="btn btn-outline" id="augmentSelectedBtn" style="width:100%; border-color:#8b5cf6; color:#8b5cf6;">✨ Auto-Augment Selected Image</button>
+        </div>
+
+        <div id="augmentReviewBox" style="display:none; margin-top:10px; padding:10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px;">
+          <div style="font-size:0.8rem; font-weight:bold; color:#475569; margin-bottom:8px;">Review Augmented Variations:</div>
+          <div id="augmentReviewGrid" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; max-height:150px; overflow-y:auto;"></div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-primary btn-sm" id="acceptAugmentsBtn" style="flex:1;">✅ Accept All</button>
+            <button class="btn btn-outline btn-sm" id="cancelAugmentsBtn" style="flex:1;">❌ Cancel</button>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

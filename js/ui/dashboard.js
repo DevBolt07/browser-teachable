@@ -17,6 +17,11 @@ export function updateStats() {
   const total = store.classes.reduce((s,c) => s + c.embeddings.length, 0);
   if (statSamples) statSamples.textContent = total;
   if (statClasses) statClasses.textContent = store.classes.length;
+
+  const autoAugmentBtn = document.getElementById('autoAugmentBtn');
+  if (autoAugmentBtn) {
+    autoAugmentBtn.disabled = total === 0;
+  }
 }
 
 export function checkTrainReady() {
