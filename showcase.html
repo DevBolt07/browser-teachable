@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ModelForge - Real-Life Solutions</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --primary: #8b5cf6;
+      --primary-hover: #7c3aed;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand { font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .btn-back { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .btn-back:hover { background: var(--border); color: white; }
+    
+    main { padding: 60px 40px; max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+    .hero { text-align: center; margin-bottom: 60px; }
+    .hero h1 { font-size: 3rem; font-weight: 800; margin-bottom: 16px; background: linear-gradient(135deg, #a78bfa, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero p { font-size: 1.1rem; color: var(--text-muted); max-width: 600px; margin: 0 auto; line-height: 1.6; }
+    
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 30px;
+      transition: transform 0.3s, box-shadow 0.3s;
+      display: flex;
+      flex-direction: column;
+    }
+    .card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5); border-color: var(--primary); }
+    .card-icon { font-size: 3rem; margin-bottom: 20px; }
+    .card h2 { font-size: 1.4rem; margin-bottom: 12px; font-weight: 700; }
+    .card p { color: var(--text-muted); line-height: 1.5; margin-bottom: 24px; flex-grow: 1; font-size: 0.95rem; }
+    
+    .btn-launch {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      width: 100%;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      box-sizing: border-box;
+    }
+    .btn-launch:hover { background: var(--primary-hover); }
+    .btn-launch:active { transform: scale(0.98); }
+    .btn-launch.agri { background: #10b981; } .btn-launch.agri:hover { background: #059669; }
+    .btn-launch.factory { background: #f59e0b; } .btn-launch.factory:hover { background: #d97706; }
+    .btn-launch.claim { background: #ef4444; } .btn-launch.claim:hover { background: #dc2626; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand" onclick="window.location.href='index.html'">🛡️ ModelForge Studio</div>
+    <button class="btn-back" onclick="window.location.href='index.html'">← Back to Studio</button>
+  </header>
+
+  <main>
+    <div class="hero">
+      <h1>Real-Life AI Solutions</h1>
+      <p>Demonstrating the power of Edge AI. Choose a pre-built intelligent scanner to solve a real-world problem directly in your browser.</p>
+    </div>
+
+    <div class="grid">
+      
+      <!-- Card 1: Agriculture -->
+      <div class="card">
+        <div class="card-icon">🌿</div>
+        <h2>Smart Agriculture Scanner</h2>
+        <p>Help farmers instantly detect crop diseases and pest infestations using a smartphone camera. Features real-time visual heatmaps pinpointing the exact diseased area on the leaf.</p>
+        <a href="agri-scanner.html" class="btn-launch agri">Launch Agri-Scanner</a>
+      </div>
+
+      <!-- Card 2: Waste Management -->
+      <div class="card">
+        <div class="card-icon">♻️</div>
+        <h2>Eco-Sort Waste AI</h2>
+        <p>Smart city solution to automatically classify garbage into Recyclable, Organic, and Hazardous categories. Built to prevent contamination in recycling streams.</p>
+        <a href="waste-scanner.html" class="btn-launch">Launch Eco-Sort AI</a>
+      </div>
+
+      <!-- Card 3: Manufacturing Defect -->
+      <div class="showcase-card card">
+        <div class="card-icon">🏭</div>
+        <h2>Factory Defect Detector</h2>
+        <p>Real-time quality assurance for manufacturing lines. The AI continuously monitors the assembly line and locks onto structurally defective products instantly.</p>
+        <a href="qa-scanner.html" class="btn-launch factory">Launch QA Scanner</a>
+      </div>
+
+      <!-- Card 4: Generic / Custom -->
+      <div class="showcase-card card">
+        <div class="card-icon">🧠</div>
+        <h2>Custom AI Model Test</h2>
+        <p>A completely generic playground. Upload any custom trained image classification model and test its accuracy and explainability heatmaps on your own images.</p>
+        <a href="custom-scanner.html" class="btn-launch" style="background:#6366f1; color:white; border:none;">Launch Custom AI</a>
+      </div>
+
+      <!-- Card 5: Vehicle Damage -->
+      <div class="showcase-card card">
+        <div class="card-icon">🚗</div>
+        <h2>ClaimLens AI</h2>
+        <p>Instant vehicle damage assessment for auto-insurance claims. Detect scratches, dents, and broken parts to accelerate claims processing.</p>
+        <a href="claim-scanner.html" class="btn-launch claim">Launch ClaimLens</a>
+      </div>
+
+    </div>
+  </main>
+
+</body>
+</html>
