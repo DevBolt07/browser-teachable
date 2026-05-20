@@ -18,6 +18,8 @@ import { exportModel, handleModelImport } from './ml/persistence.js';
 import { prepareDeploymentPackage } from './ml/deployment.js';
 import { resetTrainingCharts, initTimelineChart } from './visuals/charts.js';
 import { drawArchDiagram } from './visuals/architecture.js';
+
+const KAGGLE_PROXY_URL = ''; // Optional: set to your Kaggle proxy endpoint if direct browser download is blocked.
 import { inspectorDeactivate, inspectorActivate } from './visuals/inspector.js';
 import { setStatus, setPipe } from './utils.js';
 import { initDatasetStudio, setDatasetStudioImage, openDatasetStudio } from './ui/dataset-studio.js';
@@ -44,8 +46,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const uploadArea = document.getElementById('uploadArea');
   const imageUpload = document.getElementById('imageUpload');
   const datasetFolderInput = document.getElementById('datasetFolderInput');
+  const datasetZipInput = document.getElementById('datasetZipInput');
   const classFolderInput = document.getElementById('classFolderInput');
   const importDatasetBtn = document.getElementById('importDatasetBtn');
+  const importZipBtn = document.getElementById('importZipBtn');
   const openStudioBtn = document.getElementById('openStudioBtn');
   const preview = document.getElementById('preview');
   let pendingClassFolderId = null;
@@ -73,11 +77,29 @@ document.addEventListener('DOMContentLoaded', () => {
   if (importDatasetBtn && datasetFolderInput) {
     importDatasetBtn.addEventListener('click', () => datasetFolderInput.click());
   }
+  if (importZipBtn && datasetZipInput) {
+    importZipBtn.addEventListener('click', () => datasetZipInput.click());
+  }
   if (datasetFolderInput) {
     datasetFolderInput.addEventListener('change', async e => {
       if (e.target.files?.length) {
         await importDatasetFromFolders(e.target.files);
         if (openStudioBtn) openStudioBtn.disabled = false;
+      }
+      refreshWorkflowStep('label');
+      e.target.value = '';
+    });
+  }
+  if (datasetZipInput) {
+    datasetZipInput.addEventListener('change', async e => {
+      if (e.target.files?.length) {
+        const zipFile = e.target.files[0];
+        try {
+          await processDatasetZip(zipFile, zipFile.name);
+          if (openStudioBtn) openStudioBtn.disabled = false;
+        } catch (err) {
+          setStatus(err.message || 'ZIP import failed.', 'error');
+        }
       }
       refreshWorkflowStep('label');
       e.target.value = '';
@@ -92,6 +114,322 @@ document.addEventListener('DOMContentLoaded', () => {
       pendingClassFolderId = null;
       e.target.value = '';
     });
+  }
+
+  const importCloudBtn = document.getElementById('importCloudBtn');
+  const cloudImportModal = document.getElementById('cloudImportModal');
+  const closeCloudImportBtn = document.getElementById('closeCloudImportBtn');
+  const kagglePathInput = document.getElementById('kagglePathInput');
+  const kagglePresetButtons = document.querySelectorAll('.kagglePresetBtn');
+  const cloudImportProgress = document.getElementById('cloudImportProgress');
+  const cloudImportStatusText = document.getElementById('cloudImportStatusText');
+  const cloudImportProgressBar = document.getElementById('cloudImportProgressBar');
+  const cloudImportError = document.getElementById('cloudImportError');
+  const startCloudImportBtn = document.getElementById('startCloudImportBtn');
+
+  function resetCloudImportState() {
+    if (cloudImportError) {
+      cloudImportError.style.display = 'none';
+      cloudImportError.textContent = '';
+    }
+    if (cloudImportProgress) {
+      cloudImportProgress.style.display = 'none';
+    }
+    if (cloudImportProgressBar) {
+      cloudImportProgressBar.style.width = '0%';
+    }
+  }
+
+  function updateCloudImportStatus(message, percent = 0) {
+    if (cloudImportStatusText) cloudImportStatusText.textContent = message;
+    if (cloudImportProgress) cloudImportProgress.style.display = 'flex';
+    if (cloudImportProgressBar) cloudImportProgressBar.style.width = `${percent}%`;
+  }
+
+  function showCloudImportError(message) {
+    if (cloudImportError) {
+      cloudImportError.style.display = 'block';
+      cloudImportError.textContent = message;
+    }
+    if (cloudImportProgressBar) cloudImportProgressBar.style.width = '0%';
+  }
+
+  function openCloudModal() {
+    if (!cloudImportModal) return;
+    cloudImportModal.style.display = 'flex';
+    resetCloudImportState();
+    if (kagglePathInput) kagglePathInput.value = '';
+  }
+
+  function closeCloudModal() {
+    if (!cloudImportModal) return;
+    cloudImportModal.style.display = 'none';
+  }
+
+  if (importCloudBtn) {
+    importCloudBtn.addEventListener('click', openCloudModal);
+  }
+  if (closeCloudImportBtn) {
+    closeCloudImportBtn.addEventListener('click', closeCloudModal);
+  }
+  if (cloudImportModal) {
+    cloudImportModal.addEventListener('click', e => {
+      if (e.target === cloudImportModal) closeCloudModal();
+    });
+  }
+  const kaggleSizeLabel = document.getElementById('kaggleSizeLabel');
+  if (kagglePresetButtons) {
+    kagglePresetButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const path = button.dataset.path;
+        if (kagglePathInput) kagglePathInput.value = path;
+        const size = button.getAttribute('data-size');
+        if (kaggleSizeLabel) kaggleSizeLabel.textContent = size ? `Size: ${size}` : '';
+      });
+    });
+  }
+
+  if (kagglePathInput && kaggleSizeLabel) {
+    kagglePathInput.addEventListener('input', () => { kaggleSizeLabel.textContent = ''; });
+  }
+  // ── Training modal controls ─────────────────────────────────
+  const trainingModal = document.getElementById('trainingModal');
+  const trainingProgressBar = document.getElementById('trainingProgressBar');
+  const trainingStatusText = document.getElementById('trainingStatusText');
+  const trainingLog = document.getElementById('trainingLog');
+  const trainingCancelBtn = document.getElementById('trainingCancelBtn');
+  const trainingCloseBtn = document.getElementById('trainingCloseBtn');
+  const trainingEta = document.getElementById('trainingEta');
+
+  function openTrainingModal() {
+    if (trainingModal) trainingModal.style.display = 'flex';
+    if (trainingProgressBar) trainingProgressBar.style.width = '0%';
+    if (trainingStatusText) trainingStatusText.textContent = 'Preparing training…';
+    if (trainingLog) trainingLog.innerHTML = '';
+    if (trainingCloseBtn) trainingCloseBtn.style.display = 'none';
+    if (trainingEta) trainingEta.textContent = '—';
+  }
+
+  function closeTrainingModal() {
+    if (trainingModal) trainingModal.style.display = 'none';
+  }
+
+  function appendTrainingLog(msg) {
+    if (!trainingLog) return;
+    const p = document.createElement('div');
+    p.textContent = msg;
+    trainingLog.appendChild(p);
+    trainingLog.scrollTop = trainingLog.scrollHeight;
+  }
+
+  function updateTrainingProgress({ epoch, totalEpochs, loss, acc, percent, message, eta }) {
+    if (message && trainingStatusText) {
+      trainingStatusText.textContent = message;
+      if (message.includes('error') || message.includes('failed')) {
+        trainingStatusText.style.color = '#dc2626';
+      } else {
+        trainingStatusText.style.color = '#475569';
+      }
+    }
+    if (typeof percent === 'number' && trainingProgressBar) trainingProgressBar.style.width = `${percent}%`;
+    else if (epoch && totalEpochs && trainingProgressBar) {
+      const pct = Math.round((epoch / totalEpochs) * 100);
+      trainingProgressBar.style.width = `${pct}%`;
+    }
+    if (typeof loss !== 'undefined' || typeof acc !== 'undefined') {
+      appendTrainingLog(`Epoch ${epoch || '?'} — loss: ${loss !== undefined ? loss.toFixed(4) : '-'}  acc: ${acc !== undefined ? (acc*100).toFixed(2)+'%' : '-'} `);
+    }
+    if (eta && trainingEta) trainingEta.textContent = eta;
+  }
+
+  function showTrainingClose() {
+    if (trainingCloseBtn) trainingCloseBtn.style.display = 'inline-block';
+    if (trainingCancelBtn) trainingCancelBtn.style.display = 'none';
+  }
+
+  // Expose functions so training logic can call them
+  window.reportTrainingProgress = updateTrainingProgress;
+  window.trainingFinished = (info) => {
+    updateTrainingProgress({ message: info?.message || 'Training complete', percent: 100 });
+    appendTrainingLog(info?.summary || 'Training finished successfully.');
+    showTrainingClose();
+  };
+
+  if (trainingCancelBtn) {
+    trainingCancelBtn.addEventListener('click', () => {
+      window.__trainingCancelled = true;
+      updateTrainingProgress({ message: 'Cancelling…' });
+      appendTrainingLog('User requested cancellation. Waiting for training loop to stop.');
+    });
+  }
+  if (trainingCloseBtn) {
+    trainingCloseBtn.addEventListener('click', () => closeTrainingModal());
+  }
+  if (startCloudImportBtn) {
+    startCloudImportBtn.addEventListener('click', async () => {
+      if (!startCloudImportBtn) return;
+      startCloudImportBtn.disabled = true;
+      try {
+        const path = kagglePathInput?.value.trim() || '';
+        await importKaggleDataset(path);
+        if (openStudioBtn) openStudioBtn.disabled = false;
+        refreshWorkflowStep('label');
+        if (cloudImportModal) closeCloudModal();
+      } catch (err) {
+        showCloudImportError(err.message || 'Import failed.');
+      } finally {
+        if (startCloudImportBtn) startCloudImportBtn.disabled = false;
+      }
+    });
+  }
+  
+  async function importKaggleDataset(path) {
+    if (!path) throw new Error('Enter a Kaggle dataset path like owner/dataset.');
+    const parts = path.split('/').map(part => part.trim()).filter(Boolean);
+    if (parts.length !== 2) throw new Error('Kaggle dataset path must be owner/dataset.');
+    const [ownerSlug, datasetSlug] = parts;
+    updateCloudImportStatus('Downloading from Kaggle…', 10);
+    const blob = await fetchKaggleZip(ownerSlug, datasetSlug);
+    await processDatasetZip(blob, `${ownerSlug}-${datasetSlug}`);
+  }
+
+  async function fetchKaggleZip(ownerSlug, datasetSlug) {
+    const directUrl = `https://www.kaggle.com/api/v1/datasets/download/${ownerSlug}/${datasetSlug}`;
+
+    // Helper: perform a streamed fetch and return a Blob while updating progress
+    async function streamedFetch(url, options = {}) {
+      const response = await fetch(url, options);
+      if (!response.ok) throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+
+      const contentLengthHeader = response.headers.get('Content-Length') || response.headers.get('content-length');
+      const total = contentLengthHeader ? parseInt(contentLengthHeader, 10) : null;
+
+      // If streaming not supported, fallback to blob
+      if (!response.body || typeof response.body.getReader !== 'function') {
+        const blobFallback = await response.blob();
+        updateCloudImportStatus(`Downloaded ${Math.round(blobFallback.size/1024)} KB`, 60);
+        return blobFallback;
+      }
+
+      const reader = response.body.getReader();
+      const chunks = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length || value.byteLength || 0;
+
+        if (total) {
+          const pct = 10 + Math.round((received / total) * 60); // map to 10-70
+          updateCloudImportStatus(`Downloading from Kaggle… ${Math.round(received/1024)} KB / ${Math.round(total/1024)} KB`, pct);
+        } else {
+          updateCloudImportStatus(`Downloading from Kaggle… ${Math.round(received/1024)} KB`, 25);
+        }
+      }
+
+      const blob = new Blob(chunks, { type: 'application/zip' });
+      updateCloudImportStatus(`Downloaded ${Math.round(blob.size/1024)} KB`, 75);
+      return blob;
+    }
+
+    if (KAGGLE_PROXY_URL) {
+      const proxyUrl = new URL(KAGGLE_PROXY_URL);
+      proxyUrl.searchParams.set('ownerSlug', ownerSlug);
+      proxyUrl.searchParams.set('datasetSlug', datasetSlug);
+      try {
+        // Proxy may accept POST body with dataset info
+        const blob = await streamedFetch(proxyUrl.toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ownerSlug, datasetSlug })
+        });
+        return blob;
+      } catch (err) {
+        throw new Error(`Proxy download failed: ${err.message}`);
+      }
+    }
+
+    try {
+      const blob = await streamedFetch(directUrl, { headers: { 'Accept': 'application/zip' } });
+      return blob;
+    } catch (err) {
+      throw new Error('Kaggle download blocked by browser CORS or requires authentication. Configure a proxy or retry with a supported dataset path.');
+    }
+  }
+
+  function getMimeType(fileName) {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'bmp':
+        return 'image/bmp';
+      case 'gif':
+        return 'image/gif';
+      default:
+        return '';
+    }
+  }
+
+  function detectCommonRoot(paths) {
+    const normalized = paths.map(path => path.split('/').filter(Boolean));
+    if (!normalized.length) return '';
+    const root = normalized[0][0];
+    if (!root) return '';
+    const allMatch = normalized.every(parts => parts[0] === root);
+    return allMatch ? `${root}/` : '';
+  }
+
+  async function processDatasetZip(blob, sourceLabel) {
+    updateCloudImportStatus('Extracting dataset archive…', 35);
+    const zip = await JSZip.loadAsync(blob);
+    const entries = Object.values(zip.files).filter(entry => !entry.dir && /\.(jpe?g|png|webp|bmp|gif)$/i.test(entry.name));
+    if (!entries.length) throw new Error('No image files found inside the ZIP archive.');
+
+    const commonRoot = detectCommonRoot(entries.map(entry => entry.name));
+    const files = [];
+
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i];
+      const stripped = entry.name.replace(commonRoot, '');
+      const parts = stripped.split('/').filter(Boolean);
+      if (!parts.length) continue;
+      const fileName = parts[parts.length - 1];
+      const mimeType = getMimeType(fileName);
+      if (!mimeType) continue;
+      const blobData = await entry.async('blob');
+      const file = new File([blobData], fileName, { type: mimeType });
+      const relativePath = parts.length > 1
+        ? `${parts.slice(0, -1).join('/')}/${fileName}`
+        : `Imported/${fileName}`;
+      try {
+        file.datasetRelativePath = relativePath;
+      } catch (err) {
+        Object.defineProperty(file, 'datasetRelativePath', {
+          value: relativePath,
+          writable: false,
+          configurable: true,
+          enumerable: false
+        });
+      }
+      files.push(file);
+      if (cloudImportProgressBar) {
+        const percent = 35 + Math.round((40 * (i + 1)) / entries.length);
+        cloudImportProgressBar.style.width = `${percent}%`;
+      }
+    }
+
+    if (!files.length) throw new Error('No supported image files were imported from the archive.');
+    updateCloudImportStatus(`Importing ${files.length} images into the workspace…`, 80);
+    await importDatasetFromFolders(files);
+    updateCloudImportStatus(`Imported ${files.length} image${files.length === 1 ? '' : 's'} from ${sourceLabel}.`, 100);
   }
   
   function readFile(file) {
@@ -128,12 +466,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('addClassBtn').addEventListener('click', () => addNewClass());
   
-  document.getElementById('trainBtn').addEventListener('click', () => {
-    trainModel();
+  document.getElementById('trainBtn').addEventListener('click', async () => {
+    // Open training modal and mark training as not cancelled
+    window.__trainingCancelled = false;
+    openTrainingModal();
     refreshWorkflowStep('train');
     const chartsRow = document.getElementById('charts-row');
-    if (chartsRow) {
-      chartsRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (chartsRow) chartsRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    try {
+      // let the UI update and modal render before heavy training starts
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await trainModel();
+      // training.js should call window.reportTrainingProgress / window.trainingFinished
+    } catch (err) {
+      updateTrainingProgress({ message: `Training error: ${err.message || err}` });
+      // allow user to close
+      showTrainingClose();
     }
   });
   

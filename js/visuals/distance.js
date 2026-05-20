@@ -13,7 +13,10 @@ export async function updateDistancePanel() {
   const distPairs = document.getElementById('distPairs');
   const distNote = document.getElementById('distNote');
   if (!distPairs || !distNote) return;
-  const valid = store.classes.filter(c => c.embeddings.length > 0);
+  const perPage = window.__classesPerPage || 6;
+  const offset = window.__classesVisibleOffset || 0;
+  const validAll = store.classes.filter(c => c.embeddings.length > 0);
+  const valid = validAll.slice(offset, offset + perPage);
   const canUseEmbeddings = valid.length >= 2;
   const canUseMeans = !canUseEmbeddings
     && store.classMeans.length === store.classes.length
@@ -94,4 +97,36 @@ export async function updateDistancePanel() {
     note += ' <br><br><span style="color:#718096;">Showing saved class-mean distances from the imported model.</span>';
   }
   distNote.innerHTML = note;
+
+  // Pagination controls for embedding distance
+  const total = validAll.length;
+  if (total > perPage) {
+    const wrap = document.getElementById('distControls') || document.createElement('div');
+    wrap.id = 'distControls';
+    wrap.style.cssText = 'display:flex;gap:8px;margin-top:10px;align-items:center;';
+    wrap.innerHTML = '';
+    if (offset > 0) {
+      const prev = document.createElement('button'); prev.className='btn btn-sm'; prev.textContent = `◀ Prev ${perPage}`;
+      prev.addEventListener('click', () => { window.__classesVisibleOffset = Math.max(0, offset - perPage); updateDistancePanel(); });
+      wrap.appendChild(prev);
+    }
+    if (offset + perPage < total) {
+      const next = document.createElement('button'); next.className='btn btn-sm'; next.textContent = `Next ${perPage} ▶`;
+      next.addEventListener('click', () => { window.__classesVisibleOffset = offset + perPage; updateDistancePanel(); });
+      wrap.appendChild(next);
+    }
+    if (offset !== 0) {
+      const first = document.createElement('button'); first.className='btn btn-sm'; first.textContent='Show first';
+      first.addEventListener('click', () => { window.__classesVisibleOffset = 0; updateDistancePanel(); });
+      wrap.appendChild(first);
+    }
+    const info = document.createElement('div'); info.style.marginLeft='auto'; info.style.color='#64748b'; info.textContent = `Showing ${Math.min(total, offset+1)}–${Math.min(total, offset+perPage)} of ${total} classes`;
+    wrap.appendChild(info);
+
+    // Ensure wrap is placed after distPairs
+    const parent = distPairs.parentElement;
+    const existing = document.getElementById('distControls');
+    if (existing) existing.replaceWith(wrap);
+    else parent.appendChild(wrap);
+  }
 }

@@ -53,7 +53,10 @@ export async function renderQualityDashboard() {
 
   body.innerHTML = '';
 
-  for (const cls of store.classes) {
+  const perPage = window.__classesPerPage || 6;
+  const offset = window.__classesVisibleOffset || 0;
+  const visible = store.classes.slice(offset, offset + perPage);
+  for (const cls of visible) {
     const n = cls.embeddings.length;
     if (n === 0) continue;
 
@@ -166,12 +169,36 @@ export async function renderQualityDashboard() {
       block.appendChild(recDiv);
     }
 
-    if (cls !== store.classes[store.classes.length - 1]) {
+    if (cls !== visible[visible.length - 1]) {
       const hr = document.createElement('hr');
       hr.style.cssText = 'border:none;border-top:1px solid #e2e8f0;margin:12px 0 0;';
       block.appendChild(hr);
     }
 
     body.appendChild(block);
+  }
+  // Pagination controls for quality view
+  const total = store.classes.length;
+  if (total > perPage) {
+    const controls = document.createElement('div');
+    controls.style.cssText = 'display:flex;gap:8px;margin-top:10px;align-items:center;';
+    if (offset > 0) {
+      const prev = document.createElement('button'); prev.className='btn btn-sm'; prev.textContent = `◀ Prev ${perPage}`;
+      prev.addEventListener('click', () => { window.__classesVisibleOffset = Math.max(0, offset - perPage); renderQualityDashboard(); });
+      controls.appendChild(prev);
+    }
+    if (offset + perPage < total) {
+      const next = document.createElement('button'); next.className='btn btn-sm'; next.textContent = `Next ${perPage} ▶`;
+      next.addEventListener('click', () => { window.__classesVisibleOffset = offset + perPage; renderQualityDashboard(); });
+      controls.appendChild(next);
+    }
+    if (offset !== 0) {
+      const first = document.createElement('button'); first.className='btn btn-sm'; first.textContent='Show first';
+      first.addEventListener('click', () => { window.__classesVisibleOffset = 0; renderQualityDashboard(); });
+      controls.appendChild(first);
+    }
+    const info = document.createElement('div'); info.style.marginLeft='auto'; info.style.color='#64748b'; info.textContent = `Showing ${Math.min(total, offset+1)}–${Math.min(total, offset+perPage)} of ${total} classes`;
+    controls.appendChild(info);
+    body.appendChild(controls);
   }
 }

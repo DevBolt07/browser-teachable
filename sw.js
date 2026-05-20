@@ -1,4 +1,5 @@
-const CACHE_NAME = 'modelforge-v2';
+// Bump this when making UI/asset changes so clients get the updated SW/cache
+const CACHE_NAME = 'modelforge-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -20,35 +21,42 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
-    return; // Pass through non-HTTP or POST requests
-  }
+  // Only handle GET HTTP requests
+  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) return;
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      // Return cached response if found
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+  const acceptHeader = event.request.headers.get('Accept') || '';
+  const isHTML = acceptHeader.includes('text/html') || event.request.mode === 'navigate';
+  const isAsset = /\.(js|css|html|png|jpg|jpeg|svg|webp|woff2?)($|\?)/i.test(event.request.url);
 
-      // Otherwise fetch from network
-      return fetch(event.request).then((networkResponse) => {
-        // Cache valid HTTP responses
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+  // Network-first for navigation/HTML and key assets so UI updates are fetched immediately.
+  if (isHTML || isAsset) {
+    event.respondWith(
+      fetch(event.request).then(networkResponse => {
+        // Cache a copy for offline fallback
+        if (networkResponse && networkResponse.status === 200) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return networkResponse;
-      }).catch((err) => {
-        // If network fails and not in cache, return a generic 503 response
-        // DO NOT return undefined, it causes ERR_FAILED
-        return new Response("You are offline and this page was not cached.", {
-          status: 503,
-          statusText: "Service Unavailable"
-        });
-      });
+      }).catch(() => {
+        // On failure, try cache, else return a fallback
+        return caches.match(event.request).then(cached => cached || new Response('You are offline and this page was not cached.', { status: 503 }));
+      })
+    );
+    return;
+  }
+
+  // For other requests, fallback-to-network then cache (usual behavior)
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) return cachedResponse;
+      return fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+        }
+        return networkResponse;
+      }).catch(() => new Response('You are offline and this resource was not cached.', { status: 503 }));
     })
   );
 });

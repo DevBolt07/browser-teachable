@@ -71,7 +71,9 @@ export const PALETTE = [
   { color: '#9f7aea', bg: '#faf5ff', border: '#e9d8fd', text: '#553c9a' },
 ];
 
-export const MAX_CLASSES = 12;
+// Increase hard limit to support large imported datasets while keeping UI
+// compact via a "show more" toggle in the classes panel.
+export const MAX_CLASSES = 200;
 export const EPOCHS = 25;
 export const THUMB_SIZE = 224;
 export const THUMB_MAX = 12;

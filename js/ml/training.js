@@ -72,6 +72,49 @@ export async function trainModel() {
   store.epochSnapshots = [];
 
   try {
+    // Helper to draw mini loss chart on modal
+    function drawMiniLossChart(losses) {
+      const canvas = document.getElementById('trainingLossMini');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!losses.length) return;
+      const maxLoss = Math.max(...losses);
+      const minLoss = Math.min(...losses);
+      const range = maxLoss - minLoss || 1;
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < losses.length; i++) {
+        const x = (i / Math.max(1, losses.length - 1)) * (canvas.width - 10) + 5;
+        const y = canvas.height - 5 - ((losses[i] - minLoss) / range) * (canvas.height - 10);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    function drawMiniAccChart(accs) {
+      const canvas = document.getElementById('trainingAccMini');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!accs.length) return;
+      const maxAcc = Math.max(...accs);
+      const minAcc = Math.min(...accs);
+      const range = Math.max(0.1, maxAcc - minAcc);
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < accs.length; i++) {
+        const x = (i / Math.max(1, accs.length - 1)) * (canvas.width - 10) + 5;
+        const y = canvas.height - 5 - ((accs[i] - minAcc) / range) * (canvas.height - 10);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    const losses = [], accs = [];
     await store.classifier.fit(xs, ys, {
       epochs,
       batchSize: Math.min(batchSize, xs.shape[0]),
@@ -84,6 +127,27 @@ export async function trainModel() {
           progressBar.style.width = pct + '%';
           trainLog.textContent = `Epoch ${epoch+1}/${epochs} - Loss: ${logs.loss.toFixed(4)} | Acc: ${(acc*100).toFixed(1)}%`;
           pushTrainingCharts(epoch+1, logs.loss, acc);
+
+          // Update modal progress
+          losses.push(logs.loss);
+          accs.push(acc);
+          drawMiniLossChart(losses);
+          drawMiniAccChart(accs);
+
+          if (window.reportTrainingProgress) {
+            window.reportTrainingProgress({
+              epoch: epoch + 1,
+              totalEpochs: epochs,
+              loss: logs.loss,
+              acc: acc,
+              percent: Math.round(pct)
+            });
+          }
+
+          // Check for user cancellation
+          if (window.__trainingCancelled) {
+            throw new Error('Training cancelled by user.');
+          }
 
           const snap = {
             epoch: epoch + 1,
@@ -106,6 +170,15 @@ export async function trainModel() {
     setPipe('predict');
     setStatus('Training complete! Predict an image or start live prediction.', 'ready');
     trainLog.textContent = 'Model trained successfully!';
+
+    // Report training finished to modal
+    if (window.trainingFinished) {
+      window.trainingFinished({
+        summary: `Trained ${epochs} epochs with ${store.classes.length} classes and ${xs.shape[0]} samples.`,
+        message: '✅ Training complete!'
+      });
+    }
+
     trainBtn.disabled = false;
     predictImgBtn.disabled = false;
     startLiveBtn.disabled = false;
@@ -119,8 +192,13 @@ export async function trainModel() {
     initReplayCard();
     await evaluateModel();
   } catch(e) {
-    setStatus('Training failed: ' + e.message, 'error');
+    const errorMsg = 'Training failed: ' + e.message;
+    setStatus(errorMsg, 'error');
     trainBtn.disabled = false;
+    // Report error to modal
+    if (window.reportTrainingProgress) {
+      window.reportTrainingProgress({ message: errorMsg });
+    }
   } finally {
     xs.dispose(); ys.dispose();
   }

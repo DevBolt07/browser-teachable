@@ -58,7 +58,7 @@ function ensureClass(name) {
 }
 
 function getDatasetClassName(file) {
-  const rel = file.webkitRelativePath || '';
+  const rel = file.webkitRelativePath || file.datasetRelativePath || file.relativePath || '';
   if (!rel) return null;
   const parts = rel.split('/').filter(Boolean);
   if (!parts.length) return null;
@@ -122,7 +122,15 @@ export function renderClasses() {
   const addClassBtn = document.getElementById('addClassBtn');
   if (!classesWrap) return;
   classesWrap.innerHTML = '';
-  store.classes.forEach(cls => {
+  // Render a compact, paginated view: show only a page of classes (6 per page)
+  const PER_PAGE = 6;
+  if (typeof window.__classesVisibleOffset === 'undefined') window.__classesVisibleOffset = 0;
+  if (typeof window.__classesPerPage === 'undefined') window.__classesPerPage = PER_PAGE;
+  const offset = window.__classesVisibleOffset || 0;
+  const perPage = window.__classesPerPage || PER_PAGE;
+  const toRender = store.classes.slice(offset, offset + perPage);
+
+  toRender.forEach(cls => {
     const p = cls.pal;
     const div = document.createElement('div');
     div.className = 'class-row';
@@ -151,6 +159,41 @@ export function renderClasses() {
     updateAddImgBtn(cls.id);
     updateCollectBtn(cls.id);
   });
+  // Pagination controls: previous, next, collapse
+  const total = store.classes.length;
+  const controls = document.createElement('div');
+  controls.style.padding = '8px 4px; display:flex; gap:8px; align-items:center;';
+  if (offset > 0) {
+    const prev = document.createElement('button');
+    prev.className = 'btn btn-sm';
+    prev.textContent = `◀ Show previous ${perPage}`;
+    prev.addEventListener('click', () => { window.__classesVisibleOffset = Math.max(0, offset - perPage); renderClasses(); });
+    controls.appendChild(prev);
+  }
+  if (offset + perPage < total) {
+    const next = document.createElement('button');
+    next.className = 'btn btn-sm';
+    next.textContent = `Show next ${perPage} ▶`;
+    next.addEventListener('click', () => { window.__classesVisibleOffset = offset + perPage; renderClasses(); });
+    controls.appendChild(next);
+  }
+  if (offset !== 0) {
+    const less = document.createElement('button');
+    less.className = 'btn btn-sm';
+    less.textContent = 'Show first';
+    less.addEventListener('click', () => { window.__classesVisibleOffset = 0; renderClasses(); });
+    controls.appendChild(less);
+  }
+  if (total > perPage) {
+    const info = document.createElement('div');
+    info.style.marginLeft = 'auto';
+    info.style.color = '#64748b';
+    info.style.fontSize = '0.85rem';
+    info.textContent = `Showing ${Math.min(total, offset+1)}–${Math.min(total, offset+perPage)} of ${total} classes`;
+    controls.appendChild(info);
+  }
+  if (controls.children.length) classesWrap.appendChild(controls);
+
   if (addClassBtn) addClassBtn.disabled = store.classes.length >= MAX_CLASSES;
 }
 
@@ -180,7 +223,11 @@ export function renderPredBars() {
     return;
   }
   predBars.innerHTML = '';
-  store.classes.forEach(cls => {
+  // Paginated predictions list to match classes view
+  const perPage = window.__classesPerPage || 6;
+  const offset = window.__classesVisibleOffset || 0;
+  const toRender = store.classes.slice(offset, offset + perPage);
+  toRender.forEach(cls => {
     const p = cls.pal;
     const d = document.createElement('div');
     d.className = 'pred-row';
@@ -197,6 +244,14 @@ export function renderPredBars() {
       </div>`;
     predBars.appendChild(d);
   });
+  if (store.classes.length > perPage) {
+    const note = document.createElement('div');
+    note.style.fontSize = '0.82rem';
+    note.style.color = '#a0aec0';
+    note.style.marginTop = '6px';
+    note.textContent = `Showing ${Math.min(store.classes.length, offset+1)}–${Math.min(store.classes.length, offset+perPage)} of ${store.classes.length} classes.`;
+    predBars.appendChild(note);
+  }
 }
 
 let distTimer = null;
@@ -299,8 +354,10 @@ export async function importDatasetFromFolders(files) {
   store.classes = store.classes.filter(c => !(c.embeddings.length === 0 && (c.name === 'Class A' || c.name === 'Class B')));
   
   const newClassNames = classNames.filter(name => !findClassByName(name));
+  // Allow importing large numbers of classes. The UI will show a compact
+  // preview (first 12) with a "Show more" toggle so the panel doesn't break.
   if (store.classes.length + newClassNames.length > MAX_CLASSES) {
-    return setStatus(`This dataset needs ${classNames.length} classes. Current limit is ${MAX_CLASSES}.`, 'error');
+    setStatus(`Warning: importing ${classNames.length} classes exceeds the configured limit (${MAX_CLASSES}). Import will proceed; use the Show more toggle to view extras.`, 'warning');
   }
 
   for (const name of newClassNames) ensureClass(name);

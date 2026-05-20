@@ -27,6 +27,10 @@ export async function loadMobileNet() {
     setStatus(`${option.label} ready. Collect samples for each class to get started.`, 'ready');
     if (addClassBtn) addClassBtn.disabled = false;
     if (importDatasetBtn) importDatasetBtn.disabled = false;
+    const importZipBtn = document.getElementById('importZipBtn');
+    if (importZipBtn) importZipBtn.disabled = false;
+    const importCloudBtn = document.getElementById('importCloudBtn');
+    if (importCloudBtn) importCloudBtn.disabled = false;
 
     if (!store.classes.length) {
       addNewClass('Class A');
