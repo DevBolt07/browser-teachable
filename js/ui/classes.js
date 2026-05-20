@@ -1,4 +1,4 @@
-import { store, MAX_CLASSES, PALETTE } from '../store.js';
+import { store, MAX_CLASSES, MAX_SAMPLES_PER_CLASS, PALETTE } from '../store.js';
 import { updateStats, checkTrainReady } from './dashboard.js';
 import { updateDistancePanelWrap, scheduleQualityUpdate } from './dashboard.js';
 import { extractEmbedding } from '../ml/dataset.js';
@@ -65,6 +65,29 @@ function getDatasetClassName(file) {
   if (parts.length === 1) return parts[0];
   if (parts.length === 2) return parts[0];
   return parts[1];
+}
+
+function getFileIdentity(file) {
+  return file.webkitRelativePath || file.datasetRelativePath || file.relativePath || file.name || '';
+}
+
+function selectRandomFiles(files, maxSamples) {
+  const unique = [];
+  const seen = new Set();
+  files.forEach(file => {
+    const id = getFileIdentity(file);
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    unique.push(file);
+  });
+  if (!maxSamples || unique.length <= maxSamples) return unique;
+
+  const shuffled = unique.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, maxSamples);
 }
 
 export function addNewClass(name) {
@@ -279,15 +302,24 @@ export async function addSamplesFromFiles(id, files, options = {}) {
   const cls = store.classes.find(c => c.id === id);
   if (!cls) return { added: 0, skipped: 0 };
 
-  const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+  let imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
   if (!imageFiles.length) {
     setStatus(`No supported image files found for "${cls.name}".`, 'error');
     return { added: 0, skipped: Array.from(files).length };
   }
 
+  let droppedByLimit = 0;
+  let skipped = 0;
+  if (options.maxSamples && imageFiles.length > options.maxSamples) {
+    const originalCount = imageFiles.length;
+    imageFiles = selectRandomFiles(imageFiles, options.maxSamples);
+    droppedByLimit = originalCount - imageFiles.length;
+    skipped += droppedByLimit;
+    setStatus(`Selecting ${imageFiles.length} random images for "${cls.name}" from ${originalCount} available.`, 'ready');
+  }
+
   setPipe('embed');
   let added = 0;
-  let skipped = 0;
 
   for (let i = 0; i < imageFiles.length; i++) {
     const file = imageFiles[i];
@@ -325,7 +357,7 @@ export async function addSamplesFromFiles(id, files, options = {}) {
 export async function importClassFolderFiles(id, files) {
   const cls = store.classes.find(c => c.id === id);
   if (!cls) return;
-  const result = await addSamplesFromFiles(id, files);
+  const result = await addSamplesFromFiles(id, files, { maxSamples: MAX_SAMPLES_PER_CLASS });
   if (result.added > 0) renderClasses();
 }
 
@@ -368,10 +400,12 @@ export async function importDatasetFromFolders(files) {
   for (const [className, classFiles] of grouped.entries()) {
     const cls = ensureClass(className);
     if (!cls) continue;
-    setStatus(`Importing dataset class "${cls.name}" (${classFiles.length} files)...`, 'ready');
-    const result = await addSamplesFromFiles(cls.id, classFiles, { skipFinalize: true });
+    const filesToImport = selectRandomFiles(classFiles, MAX_SAMPLES_PER_CLASS);
+    const droppedByLimit = classFiles.length - filesToImport.length;
+    setStatus(`Importing dataset class "${cls.name}" (${filesToImport.length}/${classFiles.length} files selected)...`, 'ready');
+    const result = await addSamplesFromFiles(cls.id, filesToImport, { skipFinalize: true });
     totalAdded += result.added;
-    totalSkipped += result.skipped;
+    totalSkipped += result.skipped + droppedByLimit;
   }
 
   renderClasses();

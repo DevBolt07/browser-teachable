@@ -121,7 +121,21 @@ export async function trainModel() {
       shuffle: true,
       validationSplit: xs.shape[0] >= 10 ? 0.1 : 0,
       callbacks: {
-        onEpochEnd: (epoch, logs) => {
+        onBatchEnd: async function(batch, logs) {
+          if (window.__trainingCancelled) {
+            if (this?.model) this.model.stopTraining = true;
+            else if (store.classifier) store.classifier.stopTraining = true;
+            if (window.reportTrainingProgress) {
+              window.reportTrainingProgress({ message: 'Training cancelled by user.' });
+            }
+          }
+          await tf.nextFrame();
+        },
+        onEpochEnd: function(epoch, logs) {
+          if (window.__trainingCancelled) {
+            if (this?.model) this.model.stopTraining = true;
+            else if (store.classifier) store.classifier.stopTraining = true;
+          }
           const pct = ((epoch+1)/epochs*100).toFixed(0);
           const acc = logs.acc ?? logs.accuracy ?? 0;
           progressBar.style.width = pct + '%';
@@ -144,11 +158,6 @@ export async function trainModel() {
             });
           }
 
-          // Check for user cancellation
-          if (window.__trainingCancelled) {
-            throw new Error('Training cancelled by user.');
-          }
-
           const snap = {
             epoch: epoch + 1,
             loss:  logs.loss,
@@ -163,6 +172,10 @@ export async function trainModel() {
         }
       }
     });
+
+    if (window.__trainingCancelled) {
+      throw new Error('Training cancelled by user.');
+    }
 
     store.modelTrained = true;
     await computeClassMeans();
@@ -192,12 +205,24 @@ export async function trainModel() {
     initReplayCard();
     await evaluateModel();
   } catch(e) {
-    const errorMsg = 'Training failed: ' + e.message;
-    setStatus(errorMsg, 'error');
+    const isCancelled = e.message && e.message.toLowerCase().includes('cancel');
+    const errorMsg = isCancelled ? 'Training cancelled by user.' : 'Training failed: ' + e.message;
+    setStatus(errorMsg, isCancelled ? 'warn' : 'error');
     trainBtn.disabled = false;
-    // Report error to modal
+    predictImgBtn.disabled = false;
+    startLiveBtn.disabled = false;
+    const xaiToggle = document.getElementById('xaiToggle');
+    if (xaiToggle) xaiToggle.disabled = false;
+    // Report error/cancellation to modal
     if (window.reportTrainingProgress) {
       window.reportTrainingProgress({ message: errorMsg });
+    }
+    if (isCancelled) {
+      if (window.trainingFinished) {
+        window.trainingFinished({ message: errorMsg, summary: 'Training cancelled by user.' });
+      }
+    } else {
+      throw e;
     }
   } finally {
     xs.dispose(); ys.dispose();

@@ -74,6 +74,7 @@ export const PALETTE = [
 // Increase hard limit to support large imported datasets while keeping UI
 // compact via a "show more" toggle in the classes panel.
 export const MAX_CLASSES = 200;
+export const MAX_SAMPLES_PER_CLASS = 300;
 export const EPOCHS = 25;
 export const THUMB_SIZE = 224;
 export const THUMB_MAX = 12;

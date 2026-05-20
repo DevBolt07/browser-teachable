@@ -206,13 +206,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (trainingProgressBar) trainingProgressBar.style.width = '0%';
     if (trainingStatusText) trainingStatusText.textContent = 'Preparing training…';
     if (trainingLog) trainingLog.innerHTML = '';
-    if (trainingCloseBtn) trainingCloseBtn.style.display = 'none';
+    showTrainingCancel();
     if (trainingEta) trainingEta.textContent = '—';
   }
 
   function closeTrainingModal() {
     if (trainingModal) trainingModal.style.display = 'none';
   }
+
 
   function appendTrainingLog(msg) {
     if (!trainingLog) return;
@@ -247,6 +248,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (trainingCancelBtn) trainingCancelBtn.style.display = 'none';
   }
 
+  function showTrainingCancel() {
+    if (trainingCloseBtn) trainingCloseBtn.style.display = 'none';
+    if (trainingCancelBtn) trainingCancelBtn.style.display = 'inline-block';
+  }
+
   // Expose functions so training logic can call them
   window.reportTrainingProgress = updateTrainingProgress;
   window.trainingFinished = (info) => {
@@ -258,7 +264,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (trainingCancelBtn) {
     trainingCancelBtn.addEventListener('click', () => {
       window.__trainingCancelled = true;
-      updateTrainingProgress({ message: 'Cancelling…' });
+      trainingCancelBtn.disabled = true;
+      updateTrainingProgress({ message: 'Stopping training…' });
       appendTrainingLog('User requested cancellation. Waiting for training loop to stop.');
     });
   }
