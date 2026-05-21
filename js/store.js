@@ -34,6 +34,7 @@ export const store = {
   nextClassId: 0,
   
   // Webcam & sampling
+  webcamStream: null,
   webcamReady: false,
   collectionInterval: null,
   predInterval: null,

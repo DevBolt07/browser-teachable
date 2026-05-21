@@ -27,6 +27,9 @@ const chartOpts = {
 export function resetTrainingCharts() {
   if (store.lossChart) store.lossChart.destroy();
   if (store.accChart)  store.accChart.destroy();
+  store.lossChart = null;
+  store.accChart = null;
+  if (typeof Chart === 'undefined') return;
 
   const lossEl = document.getElementById('lossChart');
   const accEl = document.getElementById('accChart');
@@ -73,6 +76,8 @@ export function pushTrainingCharts(epoch, loss, acc) {
 
 export function initTimelineChart() {
   if (store.timelineChart) store.timelineChart.destroy();
+  store.timelineChart = null;
+  if (typeof Chart === 'undefined') return;
 
   const datasets = store.classes.map(cls => ({
     label: cls.name,

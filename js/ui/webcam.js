@@ -33,20 +33,71 @@ export function captureThumbnail(src) {
 export async function startWebcam() {
   const webcamEl = document.getElementById('webcam');
   const startWebcamBtn = document.getElementById('startWebcamBtn');
+  const predictStartCameraBtn = document.getElementById('predictStartCameraBtn');
+  if (!webcamEl) return setStatus('Webcam preview is missing from the page.', 'error');
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return setStatus('Camera requires a secure browser context. Open the app from http://localhost or HTTPS.', 'error');
+  }
+  if (store.webcamReady && store.webcamStream) {
+    setStatus('📷 Webcam is already running.', 'ready');
+    return;
+  }
   try {
+    if (startWebcamBtn) startWebcamBtn.disabled = true;
+    if (predictStartCameraBtn) predictStartCameraBtn.disabled = true;
     const stream = await navigator.mediaDevices.getUserMedia({ video:{ width:640, height:480 } });
+    store.webcamStream = stream;
     webcamEl.srcObject = stream;
     webcamEl.onloadedmetadata = () => {
       webcamEl.play();
       store.webcamReady = true;
-      startWebcamBtn.textContent = '✅ Camera On';
-      startWebcamBtn.disabled = true;
-      setStatus('📷 Webcam ready! Click a class Webcam button to collect samples.', 'ready');
+      [startWebcamBtn, predictStartCameraBtn].forEach(btn => {
+        if (!btn) return;
+        btn.textContent = '✅ Camera On';
+        btn.disabled = true;
+      });
+      setStatus('📷 Webcam ready. Collect samples or start live prediction after training.', 'ready');
       updateAllButtons();
       renderCamCollectBtns();
       syncReplayButtons();
     };
-  } catch(e) { setStatus('❌ Camera access denied. Allow camera in browser settings.', 'error'); }
+  } catch(e) {
+    store.webcamReady = false;
+    store.webcamStream = null;
+    [startWebcamBtn, predictStartCameraBtn].forEach(btn => {
+      if (!btn) return;
+      btn.textContent = '📷 Start Camera';
+      btn.disabled = false;
+    });
+    setStatus(`❌ Camera unavailable: ${e.message || 'Allow camera access in browser settings.'}`, 'error');
+  }
+}
+
+export function stopWebcam() {
+  stopCollection();
+  if (store.webcamStream) {
+    store.webcamStream.getTracks().forEach(track => track.stop());
+    store.webcamStream = null;
+  }
+  const webcamEl = document.getElementById('webcam');
+  if (webcamEl) {
+    webcamEl.pause();
+    webcamEl.srcObject = null;
+  }
+  store.webcamReady = false;
+  ['startWebcamBtn', 'predictStartCameraBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.textContent = '📷 Start Camera';
+    btn.disabled = false;
+  });
+  const webcamOverlay = document.getElementById('webcamOverlay');
+  if (webcamOverlay) {
+    webcamOverlay.removeAttribute('src');
+    webcamOverlay.style.display = 'none';
+  }
+  updateAllButtons();
+  syncReplayButtons();
 }
 
 function renderCamCollectBtns() {

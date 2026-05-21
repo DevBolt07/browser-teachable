@@ -10,7 +10,7 @@ import { loadMobileNet, buildSpatialModel } from './ml/mobilenet.js';
 import { trainModel, buildClassifier } from './ml/training.js';
 import { predictImage, performLivePredictionStep } from './ml/prediction.js';
 import { addNewClass, clearClassSamples, deleteClass, addSampleFromImage, importClassFolderFiles, importDatasetFromFolders } from './ui/classes.js';
-import { startWebcam, startCollection, stopCollection } from './ui/webcam.js';
+import { startWebcam, stopWebcam, startCollection, stopCollection } from './ui/webcam.js';
 import { setReplaySource, stopReplayAuto, scrubToEpoch, restoreFinalWeights } from './ui/replay.js';
 import { runAutoAugment } from './ml/augment.js';
 import { exportModel, handleModelImport } from './ml/persistence.js';
@@ -88,6 +88,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (predictPreviewWrap) predictPreviewWrap.classList.remove('has-image');
     if (predictUploadStatus) predictUploadStatus.textContent = 'No prediction image selected.';
     syncPredictUploadState();
+  }
+
+  function clearPredictionResults() {
+    const predWinner = document.getElementById('predWinner');
+    if (predWinner) {
+      predWinner.style.display = 'none';
+      predWinner.textContent = '';
+      predWinner.removeAttribute('style');
+      predWinner.style.display = 'none';
+    }
+    const whyBox = document.getElementById('whyBox');
+    if (whyBox) {
+      whyBox.style.display = 'none';
+      whyBox.textContent = '';
+    }
+    if (predictPreviewOverlay) {
+      predictPreviewOverlay.removeAttribute('src');
+      predictPreviewOverlay.style.display = 'none';
+    }
+    const webcamOverlay = document.getElementById('webcamOverlay');
+    if (webcamOverlay) {
+      webcamOverlay.removeAttribute('src');
+      webcamOverlay.style.display = 'none';
+    }
+    store.classes.forEach(cls => {
+      const pct = document.getElementById(`pct-${cls.id}`);
+      const bar = document.getElementById(`bar-${cls.id}`);
+      if (pct) pct.textContent = '—';
+      if (bar) bar.style.width = '0%';
+    });
   }
 
   function setPredictionImage(file) {
@@ -597,7 +627,10 @@ document.addEventListener('DOMContentLoaded', () => {
     predictImage(predictPreview, { overlayEl: predictPreviewOverlay });
   });
   
-  document.getElementById('startWebcamBtn').addEventListener('click', startWebcam);
+  const startWebcamBtn = document.getElementById('startWebcamBtn');
+  if (startWebcamBtn) startWebcamBtn.addEventListener('click', startWebcam);
+  const predictStartCameraBtn = document.getElementById('predictStartCameraBtn');
+  if (predictStartCameraBtn) predictStartCameraBtn.addEventListener('click', startWebcam);
 
   const startLiveBtn = document.getElementById('startLiveBtn');
   const exportEvalPdfBtn = document.getElementById('exportEvalPdfBtn');
@@ -729,47 +762,88 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('resetBtn').addEventListener('click', () => {
     if (!confirm('Reset everything? All samples and training will be lost.')) return;
-    stopCollection(); stopLive();
-    stopReplayAuto();
-    store.epochSnapshots = [];
-    store.replayTestEmb  = null;
-    const replayCard = document.getElementById('replay-card');
-    if (replayCard) {
-      replayCard.style.display = 'none';
-      document.getElementById('replayBars').innerHTML = '';
-      document.getElementById('replayInsight').textContent = 'Train the model first, then select a test image to begin.';
+    try {
+      stopLive();
+      stopWebcam();
+      stopReplayAuto();
+      store.epochSnapshots = [];
+      store.replayTestEmb = null;
+      store.replayTestSrc = null;
+      store.classMeans = [];
+      const replayCard = document.getElementById('replay-card');
+      if (replayCard) replayCard.style.display = 'none';
+      const replayBars = document.getElementById('replayBars');
+      if (replayBars) replayBars.innerHTML = '';
+      const replayInsight = document.getElementById('replayInsight');
+      if (replayInsight) replayInsight.textContent = 'Train the model first, then select a test image to begin.';
+
+      store.classes.forEach(c => c.embeddings.forEach(t => t.dispose()));
+      store.classes = [];
+      store.nextClassId = 0;
+      store.modelTrained = false;
+
+      const qb = document.getElementById('qualityBody');
+      if (qb) qb.innerHTML = '<div class="qd-empty">Collect samples to see dataset quality insights here.</div>';
+      if (preview) {
+        preview.style.display = 'none';
+        preview.removeAttribute('src');
+      }
+      clearPredictionUpload();
+      clearPredictionResults();
+      if (openStudioBtn) openStudioBtn.disabled = true;
+      const datasetStudio = document.getElementById('datasetStudio');
+      if (datasetStudio) datasetStudio.style.display = 'none';
+      const progressBar = document.getElementById('progressBar');
+      if (progressBar) progressBar.style.width = '0%';
+      const trainLog = document.getElementById('trainLog');
+      if (trainLog) trainLog.textContent = '—';
+      const predictImgBtn = document.getElementById('predictImgBtn');
+      if (predictImgBtn) predictImgBtn.disabled = true;
+      if (startLiveBtn) startLiveBtn.disabled = true;
+      const xaiToggle = document.getElementById('xaiToggle');
+      if (xaiToggle) {
+        xaiToggle.checked = false;
+        xaiToggle.disabled = true;
+      }
+      const exportBtn = document.getElementById('exportBtn');
+      if (exportBtn) exportBtn.disabled = true;
+      const generateLinkBtn = document.getElementById('generateLinkBtn');
+      if (generateLinkBtn) generateLinkBtn.disabled = true;
+      const linkOutput = document.getElementById('linkOutput');
+      if (linkOutput) {
+        linkOutput.style.display = 'none';
+        linkOutput.textContent = '';
+      }
+      const deployPackageBtn = document.getElementById('deployPackageBtn');
+      if (deployPackageBtn) deployPackageBtn.disabled = true;
+      const collectStatus = document.getElementById('collectStatus');
+      if (collectStatus) collectStatus.textContent = '';
+      const distPairs = document.getElementById('distPairs');
+      if (distPairs) distPairs.innerHTML = '<div style="font-size:0.82rem;color:#a0aec0;">Add samples to at least 2 classes to see how separable they are.</div>';
+      const distNote = document.getElementById('distNote');
+      if (distNote) distNote.textContent = '';
+      resetTrainingCharts();
+      if (store.timelineChart) {
+        store.timelineChart.destroy();
+        store.timelineChart = null;
+      }
+      store.timelineTick = 0;
+      setPipe('load');
+      const loadStep = document.getElementById('ps-load');
+      if (loadStep) loadStep.classList.add('done');
+      const addClassBtn = document.getElementById('addClassBtn');
+      if (addClassBtn) addClassBtn.disabled = false;
+      buildClassifier(2);
+      addNewClass('Class A');
+      addNewClass('Class B');
+      updateTrainingConfigLabels();
+      drawArchDiagram();
+      refreshWorkflowStep('upload');
+      setStatus('🔄 Reset complete. Start collecting samples!', 'ready');
+    } catch (err) {
+      console.error('[Reset] failed:', err);
+      setStatus(`Reset failed: ${err.message || err}`, 'error');
     }
-    store.classes.forEach(c => c.embeddings.forEach(t => t.dispose()));
-    store.classes = []; store.nextClassId = 0;
-    store.modelTrained = false;
-    const qb = document.getElementById('qualityBody');
-    if (qb) qb.innerHTML = '<div class="qd-empty">Collect samples to see dataset quality insights here.</div>';
-    preview.style.display = 'none'; preview.src = '';
-    clearPredictionUpload();
-    if (openStudioBtn) openStudioBtn.disabled = true;
-    const datasetStudio = document.getElementById('datasetStudio');
-    if (datasetStudio) datasetStudio.style.display = 'none';
-    document.getElementById('predWinner').style.display = 'none';
-    const whyBox = document.getElementById('whyBox');
-    if (whyBox) { whyBox.style.display = 'none'; whyBox.textContent = ''; }
-    document.getElementById('progressBar').style.width = '0%';
-    document.getElementById('trainLog').textContent = '—';
-    document.getElementById('predictImgBtn').disabled = startLiveBtn.disabled = true;
-    const deployPackageBtn = document.getElementById('deployPackageBtn');
-    if (deployPackageBtn) deployPackageBtn.disabled = true;
-    document.getElementById('collectStatus').textContent = '';
-    document.getElementById('distPairs').innerHTML = '<div style="font-size:0.82rem;color:#a0aec0;">Add samples to at least 2 classes to see how separable they are.</div>';
-    document.getElementById('distNote').textContent = '';
-    resetTrainingCharts();
-    if (store.timelineChart) { store.timelineChart.destroy(); store.timelineChart = null; }
-    setPipe('load'); document.getElementById('ps-load').classList.add('done');
-    setStatus('🔄 Reset complete. Start collecting samples!', 'ready');
-    document.getElementById('addClassBtn').disabled = false;
-    buildClassifier(2);
-    addNewClass('Class A'); addNewClass('Class B');
-    updateTrainingConfigLabels();
-    drawArchDiagram();
-    refreshWorkflowStep('upload');
   });
 
   // ── Feature Specific Handlers ──────────────────────────────────
