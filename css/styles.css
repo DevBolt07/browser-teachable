@@ -142,9 +142,55 @@
       display: grid;
       grid-template-columns: 380px 1fr;
       gap: 20px;
+      transition: grid-template-columns 0.28s ease;
+    }
+    main.workflow-one-column {
+      grid-template-columns: minmax(320px, 760px);
+      justify-content: center;
     }
     .left-col  { display: flex; flex-direction: column; gap: 16px; }
     .right-col { display: flex; flex-direction: column; gap: 16px; }
+    .workflow-column-empty { display: none; }
+
+    .workflow-panel {
+      opacity: 1;
+      transform: translateY(0);
+      max-height: 4200px;
+      overflow: hidden;
+      transition:
+        opacity 0.24s ease,
+        transform 0.24s ease,
+        max-height 0.28s ease,
+        padding-top 0.28s ease,
+        padding-bottom 0.28s ease,
+        margin 0.28s ease,
+        border-width 0.28s ease,
+        box-shadow 0.28s ease;
+      will-change: opacity, transform, max-height;
+    }
+    .workflow-panel[hidden] {
+      display: none !important;
+    }
+    .workflow-panel.is-workflow-hidden {
+      opacity: 0;
+      transform: translateY(10px);
+      max-height: 0 !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+      border-width: 0 !important;
+      box-shadow: none !important;
+      pointer-events: none;
+      visibility: hidden;
+    }
+    .workflow-panel.is-workflow-active {
+      animation: workflowPanelIn 0.24s ease both;
+    }
+    @keyframes workflowPanelIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
     /* ── Cards ────────────────────────────────────────────── */
     .card {

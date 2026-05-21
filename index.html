@@ -114,7 +114,7 @@
     </div>
 
     <!-- Webcam card -->
-    <div class="card">
+    <div class="card" id="webcamCard">
       <div class="card-title">📷 Live Data Collection <span class="step-badge">STEP 2</span></div>
       <div style="position: relative; width: 100%; aspect-ratio: 4/3;">
         <video id="webcam" autoplay playsinline style="width: 100%; height: 100%; border-radius: 8px; border: 1px solid #e2e8f0; background: #000; object-fit: cover;"></video>
@@ -131,11 +131,40 @@
       <div class="card-title">
         🏷 Classification Tiers <span class="step-badge">STEP 3</span>
       </div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button class="btn btn-outline btn-sm" id="openLabelingStudioBtn" type="button" style="flex:1;">Open Labeling Studio</button>
+      </div>
       <div id="classes-wrap"></div>
 
       <div style="display:flex; justify-content:space-between; gap:10px; margin-top:10px;">
         <button id="addClassBtn" style="flex:1;" disabled>＋ Add Class <span style="opacity:0.5;font-size:0.7rem">(max 12)</span></button>
         <button id="autoAugmentBtn" class="btn btn-outline" style="flex:1; border-color:#8b5cf6; color:#8b5cf6;" disabled>✨ Auto-Augment Data</button>
+      </div>
+
+      <div id="datasetStudio" class="dataset-studio" style="display:none;">
+        <div class="studio-head">
+          <div>
+            <div class="studio-title">Dataset Studio</div>
+            <div class="studio-sub">Edit the selected upload, choose a class, then save it as a labeled sample.</div>
+          </div>
+        </div>
+        <canvas id="datasetCanvas" class="dataset-canvas"></canvas>
+        <div class="edit-grid">
+          <label class="edit-control">
+            <span>Brightness <b id="brightnessVal">100%</b></span>
+            <input id="editBrightness" type="range" min="50" max="150" value="100">
+          </label>
+          <label class="edit-control">
+            <span>Contrast <b id="contrastVal">100%</b></span>
+            <input id="editContrast" type="range" min="50" max="160" value="100">
+          </label>
+        </div>
+        <div class="studio-actions">
+          <button class="btn btn-outline btn-sm" id="resetEditBtn" type="button">Reset</button>
+          <select id="labelClassSelect" class="label-select" aria-label="Label class"></select>
+          <button class="btn btn-primary btn-sm" id="addEditedSampleBtn" type="button" disabled>Add Sample</button>
+        </div>
+        <button class="btn btn-outline btn-sm" id="applyCropBtn" type="button" style="width:100%; margin-top:8px;">Apply Crop / Edits</button>
       </div>
     </div>
 
@@ -398,34 +427,6 @@
 
     <!-- MobileNet Internals Visualiser -->
     <div id="internals-card">
-    </div>
-
-    <!-- Training Progress Modal -->
-    <div id="trainingModal" style="display:none; position:fixed; inset:0; background:rgba(2,6,23,0.6); align-items:center; justify-content:center; z-index:1200;">
-      <div style="width:520px; max-width:94%; background:white; border-radius:10px; padding:16px; box-shadow:0 10px 30px rgba(2,6,23,0.4);">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <h3 style="margin:0;">🏋️ Training in progress</h3>
-          <div style="margin-left:auto; font-size:0.85rem; color:#64748b;" id="trainingEta">—</div>
-        </div>
-        <div style="margin-top:12px; font-size:0.9rem; color:#475569;" id="trainingStatusText">Preparing training…</div>
-        <div style="height:12px; background:#f1f5f9; border-radius:8px; margin-top:12px; overflow:hidden;">
-          <div id="trainingProgressBar" style="height:12px; background:linear-gradient(90deg,#60a5fa,#7c3aed); width:0%;"></div>
-        </div>
-        <div style="display:flex; gap:12px; margin-top:12px; align-items:flex-start;">
-          <div style="flex:1;">
-            <canvas id="trainingLossMini" width="240" height="80" style="border:1px solid #eef2ff; border-radius:6px;"></canvas>
-          </div>
-          <div style="width:160px;">
-            <canvas id="trainingAccMini" width="160" height="80" style="border:1px solid #eef2ff; border-radius:6px;"></canvas>
-          </div>
-        </div>
-        <div id="trainingLog" style="margin-top:12px; max-height:120px; overflow:auto; background:#fbfdff; border:1px solid #e6edf8; padding:8px; border-radius:6px; font-size:0.82rem; color:#334155;">Logs will appear here.</div>
-        <div style="display:flex; gap:8px; margin-top:12px;">
-          <button class="btn btn-red" id="trainingCancelBtn">⏹ Stop Training</button>
-          <button class="btn btn-outline" id="trainingCloseBtn" style="margin-left:auto; display:none;">Close</button>
-        </div>
-      </div>
-    </div>
       <h3 id="internalsToggleBtn">
         🧬 MobileNet Internals
         <span style="font-size:0.68rem;color:#a0aec0;font-weight:400;text-transform:none;">— inside the frozen feature extractor</span>
@@ -482,6 +483,33 @@
         <!-- Live insight row -->
         <div id="internalsInsight">
           Start Live Prediction — this panel will show what MobileNet activates at each depth of the network in real time.
+        </div>
+      </div>
+    </div>
+
+    <!-- Training Progress Modal -->
+    <div id="trainingModal" style="display:none; position:fixed; inset:0; background:rgba(2,6,23,0.6); align-items:center; justify-content:center; z-index:1200;">
+      <div style="width:520px; max-width:94%; background:white; border-radius:10px; padding:16px; box-shadow:0 10px 30px rgba(2,6,23,0.4);">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <h3 style="margin:0;">🏋️ Training in progress</h3>
+          <div style="margin-left:auto; font-size:0.85rem; color:#64748b;" id="trainingEta">—</div>
+        </div>
+        <div style="margin-top:12px; font-size:0.9rem; color:#475569;" id="trainingStatusText">Preparing training…</div>
+        <div style="height:12px; background:#f1f5f9; border-radius:8px; margin-top:12px; overflow:hidden;">
+          <div id="trainingProgressBar" style="height:12px; background:linear-gradient(90deg,#60a5fa,#7c3aed); width:0%;"></div>
+        </div>
+        <div style="display:flex; gap:12px; margin-top:12px; align-items:flex-start;">
+          <div style="flex:1;">
+            <canvas id="trainingLossMini" width="240" height="80" style="border:1px solid #eef2ff; border-radius:6px;"></canvas>
+          </div>
+          <div style="width:160px;">
+            <canvas id="trainingAccMini" width="160" height="80" style="border:1px solid #eef2ff; border-radius:6px;"></canvas>
+          </div>
+        </div>
+        <div id="trainingLog" style="margin-top:12px; max-height:120px; overflow:auto; background:#fbfdff; border:1px solid #e6edf8; padding:8px; border-radius:6px; font-size:0.82rem; color:#334155;">Logs will appear here.</div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn btn-red" id="trainingCancelBtn">⏹ Stop Training</button>
+          <button class="btn btn-outline" id="trainingCloseBtn" style="margin-left:auto; display:none;">Close</button>
         </div>
       </div>
     </div>

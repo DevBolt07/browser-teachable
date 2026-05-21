@@ -159,7 +159,6 @@ export function openDatasetStudio() {
   if (!sourceImage?.naturalWidth) {
     setStatus('Studio is open. Upload one image if you want crop/brightness editing.', 'ready');
   }
-  els.panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 export function initDatasetStudio() {

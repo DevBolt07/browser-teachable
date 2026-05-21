@@ -463,9 +463,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Global Button Listeners ────────────────────────────────────
 
-  const labelTabBtn = document.querySelector('[data-step="label"]');
-  if (labelTabBtn) {
-    labelTabBtn.addEventListener('click', () => {
+  const openLabelingStudioBtn = document.getElementById('openLabelingStudioBtn');
+  if (openLabelingStudioBtn) {
+    openLabelingStudioBtn.addEventListener('click', () => {
       openLabelingModal();
       refreshWorkflowStep('label');
     });
@@ -478,8 +478,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.__trainingCancelled = false;
     openTrainingModal();
     refreshWorkflowStep('train');
-    const chartsRow = document.getElementById('charts-row');
-    if (chartsRow) chartsRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     try {
       // let the UI update and modal render before heavy training starts

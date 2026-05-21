@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head> 
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ModelForge AI - Step-by-Step Workflow</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="js/ml/xai.js"></script>
+  <link rel="stylesheet" href="css/styles-workflow.css">
+</head>
+<body>
+
+<!-- Header -->
+<header class="workflow-header">
+  <div class="header-left">
+    <div class="logo">🛡️</div>
+    <div>
+      <h1>ModelForge Studio</h1>
+      <p>No-Code Model Training Workspace</p>
+    </div>
+  </div>
+  <div style="display:flex; gap: 10px; align-items:center;">
+    <button class="btn btn-sm" id="install-pwa-btn" style="display:none; background: #10b981; color: white; border: none; font-weight: 700; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3); padding: 6px 12px; border-radius: 6px; cursor: pointer;">📥 Install App</button>
+    <button class="btn btn-sm" onclick="window.location.href='showcase.html'" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: white; border: none; font-weight: 700; box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.3); padding: 6px 12px; border-radius: 6px; cursor: pointer;">🚀 Real-Life Solutions</button>
+    <span style="font-size: 0.85rem; color: #475569; font-weight: 600; padding-right: 8px; border-right: 1px solid #cbd5e1; margin-left: 10px;">👨‍💻 Data Scientist</span>
+    <button class="btn btn-red btn-sm" id="resetBtn">🔄 Reset</button>
+    <button class="btn btn-outline btn-sm" onclick="window.location.href='login.html'" style="border-color: #cbd5e1; color: #475569; background: white;">🚪 Logout</button>
+  </div>
+</header>
+
+<!-- Status -->
+<div id="status-bar">⏳ Loading MobileNet model…</div>
+
+<!-- Progress & Workflow Tracker -->
+<div class="workflow-tracker">
+  <div class="progress-container">
+    <div class="progress-bar" id="workflow-progress-bar"></div>
+  </div>
+  <div class="step-indicators">
+    <button class="step-indicator" data-step-btn="1" data-step="1" title="Create Project">
+      <span class="step-num">1</span>
+      <span class="step-label">Project</span>
+    </button>
+    <button class="step-indicator" data-step-btn="2" data-step="2" title="Add Classes" disabled>
+      <span class="step-num">2</span>
+      <span class="step-label">Classes</span>
+    </button>
+    <button class="step-indicator" data-step-btn="3" data-step="3" title="Upload Dataset" disabled>
+      <span class="step-num">3</span>
+      <span class="step-label">Dataset</span>
+    </button>
+    <button class="step-indicator" data-step-btn="4" data-step="4" title="Configure Training" disabled>
+      <span class="step-num">4</span>
+      <span class="step-label">Configure</span>
+    </button>
+    <button class="step-indicator" data-step-btn="5" data-step="5" title="Train Model" disabled>
+      <span class="step-num">5</span>
+      <span class="step-label">Train</span>
+    </button>
+    <button class="step-indicator" data-step-btn="6" data-step="6" title="Test Predictions" disabled>
+      <span class="step-num">6</span>
+      <span class="step-label">Test</span>
+    </button>
+    <button class="step-indicator" data-step-btn="7" data-step="7" title="Export & Deploy" disabled>
+      <span class="step-num">7</span>
+      <span class="step-label">Export</span>
+    </button>
+  </div>
+  <div class="step-counter" id="workflow-step-counter">1 / 7</div>
+</div>
+
+<!-- Main Workflow Container -->
+<main class="workflow-main">
+
+  <!-- ══ STEP 1: Create Project ════════════════════════════ -->
+  <section class="workflow-step active" data-step-panel="1">
+    <div class="step-header">
+      <div>
+        <h2>🎯 Step 1: Create Your Project</h2>
+        <p class="step-description">Start fresh or choose a preset to speed up your workflow</p>
+      </div>
+      <div class="step-badges">
+        <span class="step-status-badge">Getting Started</span>
+      </div>
+    </div>
+
+    <div class="step-content">
+      <div class="content-grid">
+        <!-- Project Name -->
+        <div class="form-section">
+          <label class="form-label">Project Name</label>
+          <input type="text" id="projectName" class="form-input" placeholder="e.g., Plant Disease Classifier" value="My ML Project">
+          <p class="form-hint">Give your project a meaningful name to track it later</p>
+        </div>
+
+        <!-- Model Type -->
+        <div class="form-section">
+          <label class="form-label">Model Type</label>
+          <select id="modelType" class="form-input">
+            <option value="image-classification">📸 Image Classification</option>
+            <option value="object-detection">🎯 Object Detection</option>
+            <option value="pose-estimation">🧘 Pose Estimation</option>
+          </select>
+          <p class="form-hint">Choose the type of ML task you want to train</p>
+        </div>
+
+        <!-- Quick Templates -->
+        <div class="form-section full-width">
+          <label class="form-label">Quick Templates</label>
+          <div class="template-grid">
+            <div class="template-card" data-template="plants">
+              <div class="template-emoji">🌱</div>
+              <div class="template-name">Plant Disease</div>
+              <p class="template-hint">Pre-configured for agricultural classification</p>
+              <button class="btn btn-secondary btn-sm">Use Template</button>
+            </div>
+            <div class="template-card" data-template="quality">
+              <div class="template-emoji">✅</div>
+              <div class="template-name">Quality Control</div>
+              <p class="template-hint">Detect defects in manufacturing</p>
+              <button class="btn btn-secondary btn-sm">Use Template</button>
+            </div>
+            <div class="template-card" data-template="animals">
+              <div class="template-emoji">🐾</div>
+              <div class="template-name">Animal Detection</div>
+              <p class="template-hint">Identify species and behaviors</p>
+              <button class="btn btn-secondary btn-sm">Use Template</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="step-actions">
+        <button class="btn btn-outline" disabled style="opacity: 0.2; cursor: not-allowed;">← Back</button>
+        <button class="btn btn-primary" id="step1-next">Next: Add Classes →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ STEP 2: Add Classes ═══════════════════════════════ -->
+  <section class="workflow-step" data-step-panel="2">
+    <div class="step-header">
+      <div>
+        <h2>🏷️ Step 2: Define Your Classes</h2>
+        <p class="step-description">Create classification categories for your model to learn</p>
+      </div>
+      <div class="step-badges">
+        <span class="step-status-badge" id="step2-status">0 Classes</span>
+      </div>
+    </div>
+
+    <div class="step-content">
+      <div id="classes-container" class="classes-grid">
+        <!-- Classes will be rendered here -->
+      </div>
+
+      <div style="margin-top: 24px; text-align: center;">
+        <button class="btn btn-outline" id="addClassButton" style="border-style: dashed; padding: 16px 24px; font-size: 0.95rem;">
+          ＋ Add New Class (max 12)
+        </button>
+      </div>
+
+      <!-- Navigation -->
+      <div class="step-actions">
+        <button class="btn btn-outline" id="step2-back">← Back</button>
+        <button class="btn btn-primary" id="step2-next" disabled>Next: Upload Dataset →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ STEP 3: Upload & Organize Dataset ══════════════════ -->
+  <section class="workflow-step" data-step-panel="3">
+    <div class="step-header">
+      <div>
+        <h2>📦 Step 3: Upload & Organize Dataset</h2>
+        <p class="step-description">Add training images for each class. Drag and drop for easy upload.</p>
+      </div>
+      <div class="step-badges">
+        <span class="step-status-badge" id="step3-status">0 Samples</span>
+      </div>
+    </div>
+
+    <div class="step-content">
+      <!-- Upload Options -->
+      <div class="upload-options">
+        <div class="upload-box">
+          <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">
+              <p class="upload-title">Drag & drop images here</p>
+              <p class="upload-hint">or click to browse</p>
+            </div>
+          </div>
+          <input type="file" id="imageUpload" accept="image/*" style="display:none;"/>
+          <input type="file" id="datasetFolderInput" accept="image/*" webkitdirectory directory multiple style="display:none;"/>
+          <input type="file" id="datasetZipInput" accept=".zip" style="display:none;"/>
+        </div>
+
+        <div class="upload-actions">
+          <button class="btn btn-secondary" id="importDatasetBtn" disabled>📁 Import Dataset Folder</button>
+          <button class="btn btn-secondary" id="importZipBtn" disabled>📦 Import ZIP Archive</button>
+          <button class="btn btn-secondary" id="importCloudBtn" disabled>🌐 Import from Kaggle</button>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div id="preview-container" style="display: none;">
+        <h3 style="margin: 16px 0 12px; font-size: 0.9rem; font-weight: 600; color: #475569;">Preview</h3>
+        <img id="preview" alt="preview" style="max-width: 100%; max-height: 240px; border-radius: 8px; border: 1px solid #e2e8f0;"/>
+      </div>
+
+      <!-- Dataset Studio -->
+      <div id="datasetStudio" style="margin-top: 20px; display: none;">
+        <div class="studio-header">
+          <h3>📊 Dataset Organization</h3>
+          <button class="btn btn-outline btn-sm" id="openStudioBtn">Open Dataset Studio</button>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="step-actions">
+        <button class="btn btn-outline" id="step3-back">← Back</button>
+        <button class="btn btn-primary" id="step3-next" disabled>Next: Configure Training →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ STEP 4: Configure Training ════════════════════════ -->
+  <section class="workflow-step" data-step-panel="4">
+    <div class="step-header">
+      <div>
+        <h2>⚙️ Step 4: Configure Training</h2>
+        <p class="step-description">Set model parameters. Advanced options available below.</p>
+      </div>
+      <div class="step-badges">
+        <span class="step-status-badge" id="step4-status">Ready</span>
+      </div>
+    </div>
+
+    <div class="step-content">
+      <!-- Quick Settings -->
+      <div class="config-section">
+        <h3 class="config-title">Essential Settings</h3>
+        <div class="form-grid">
+          <div class="form-section">
+            <label class="form-label">Training Epochs</label>
+            <input type="number" id="epochsInput" class="form-input" min="1" max="200" value="25">
+            <p class="form-hint">Number of times to cycle through data</p>
+          </div>
+          <div class="form-section">
+            <label class="form-label">Batch Size</label>
+            <input type="number" id="batchSizeInput" class="form-input" min="1" max="256" value="16">
+            <p class="form-hint">Images processed at once</p>
+          </div>
+          <div class="form-section">
+            <label class="form-label">Learning Rate</label>
+            <input type="number" id="learningRateInput" class="form-input" min="0.000001" max="1" step="0.0001" value="0.0005">
+            <p class="form-hint">How fast the model learns</p>
+          </div>
+          <div class="form-section">
+            <label class="form-label">Hidden Units</label>
+            <input type="number" id="hiddenUnitsInput" class="form-input" min="8" max="1024" step="8" value="128">
+            <p class="form-hint">Classifier layer neurons</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced Settings (Collapsed) -->
+      <div class="collapsible-section">
+        <button class="collapsible-header">
+          <span>🔧 Advanced Settings</span>
+          <span class="collapsible-icon">▼</span>
+        </button>
+        <div class="collapsible-content" style="display: none;">
+          <div class="form-grid">
+            <div class="form-section">
+              <label class="form-label">Feature Backbone</label>
+              <select id="backboneSelect" class="form-input">
+                <option value="mobilenet">MobileNet v1</option>
+              </select>
+              <small id="backboneMeta">1024 features</small>
+            </div>
+            <div class="form-section">
+              <label class="form-label">Optimizer</label>
+              <select id="optimizerSelect" class="form-input">
+                <option value="adam">Adam</option>
+                <option value="sgd">SGD</option>
+                <option value="rmsprop">RMSprop</option>
+              </select>
+            </div>
+            <div class="form-section">
+              <label class="form-label">Dropout Rate</label>
+              <input type="range" id="dropoutInput" min="0" max="0.8" step="0.05" value="0.3">
+              <p id="dropoutValue" style="margin-top: 4px; font-size: 0.8rem; color: #667eea; font-weight: 600;">30%</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Training Stats -->
+      <div class="stats-preview">
+        <div class="stat">
+          <div class="stat-label">Total Samples</div>
+          <div class="stat-value" id="statSamples">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Classes</div>
+          <div class="stat-value" id="statClasses">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Estimated Time</div>
+          <div class="stat-value" id="statTime">—</div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="step-actions">
+        <button class="btn btn-outline" id="step4-back">← Back</button>
+        <button class="btn btn-primary" id="step4-next">Next: Train Model →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ STEP 5: Train Model ═══════════════════════════════ -->
+  <section class="workflow-step" data-step-panel="5">
+    <div class="step-header">
+      <div>
+        <h2>🏋️ Step 5: Train Your Model</h2>
+        <p class="step-description">Watch your model learn from the training data</p>
+      </div>
+      <div class="step-badges">
+        <span class="step-status-badge" id="step5-status">Ready to Train</span>
+      </div>
+    </div>
+
+    <div class="step-content">
+      <!-- Main Training Button -->
+      <div style="text-align: center; margin-bottom: 32px;">
+        <button class="btn btn-primary btn-large" id="trainBtn" disabled>
+          🚀 Start Training
+        </button>
+        <p style="margin-top: 12px; font-size: 0.9rem; color: #718096;">Training will take a few minutes depending on dataset size</p>
+      </div>
+
+      <!-- Training Progress (Initially Hidden) -->
+      <div id="training-progress-section" style="display: none;">
+        <!-- Progress Bar -->
+        <div class="training-progress">
+          <div class="progress-labels">
+            <span>Training Progress</span>
+            <span id="trainingPercent">0%</span>
+          </div>
+          <div class="progress-bar-large" id="trainingProgressBar"></div>
+        </div>
+
+        <!-- Live Charts -->
+        <div class="training-charts">
+          <div class="chart-container">
+            <h4>📉 Training Loss</h4>
+            <canvas id="lossChart"></canvas>
+          </div>
+          <div class="chart-container">
+            <h4>📈 Training Accuracy</h4>
+            <canvas id="accChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Training Log -->
+        <div class="training-log" id="trainLog">
+          <p style="color: #a0aec0; text-align: center;">Training started…</p>
+        </div>
+
+        <!-- Training Status -->
+        <div id="trainingStatus" style="margin-top: 16px; padding: 12px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #3b82f6; color: #1e40af; font-size: 0.9rem; display: none;">
+          <!-- Status updates will appear here -->
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="step-actions" id="step5-actions">
+        <button class="btn btn-outline" id="step5-back">← Back</button>
+        <button class="btn btn-primary" id="step5-next" disabled>Next: Test Predictions →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ STEP 6: Test Predictions ══════════════════════════ -->
+  <section class="workflow-step" data-step-panel="6">
+    <div class="step-header">
+      <div>
+        <h2>🎯 Step 6: Test Your Model</h2>
+        <p class="step-description">Try your trained model on new images</p>
+      </div>
+      <div class="step-badges">
+        <span class="step-status-badge" id="step6-status">Ready to Test</span>
+      </div>
+    </div>
+
+    <div class="step-content">
+      <!-- Test Methods Tabs -->
+      <div class="test-methods">
+        <button class="test-method-btn active" data-method="webcam">
+          📷 Live Camera
+        </button>
+        <button class="test-method-btn" data-method="upload">
+          📁 Upload Image
+        </button>
+        <button class="test-method-btn" data-method="inspect">
+          🔬 Inspect Pipeline
+        </button>
+      </div>
+
+      <!-- Method 1: Webcam Testing -->
+      <div class="test-method-panel active" id="webcam-method">
+        <div class="webcam-container">
+          <video id="webcam" autoplay playsinline style="width: 100%; border-radius: 12px; background: #000; display: block;"></video>
+        </div>
+        <div class="test-controls">
+          <button class="btn btn-primary" id="startLiveBtn" disabled>▶ Start Live Predictions</button>
+          <button class="btn btn-stop" id="stopLiveBtn" disabled>⏹ Stop</button>
+        </div>
+        <div id="predictionResults">
+          <div style="font-size: 0.9rem; color: #a0aec0; text-align: center;">Click "Start Live Predictions" to begin</div>
+        </div>
+      </div>
+
+      <!-- Method 2: Image Upload Testing -->
+      <div class="test-method-panel" id="upload-method" style="display: none;">
+        <div class="upload-area" id="testUploadArea">
+          <div class="upload-icon">📁</div>
+          <div class="upload-text">
+            <p class="upload-title">Upload a test image</p>
+            <p class="upload-hint">or drag & drop</p>
+          </div>
+        </div>
+        <input type="file" id="testImageUpload" accept="image/*" style="display:none;"/>
+        <div id="testPredictionResults" style="margin-top: 16px;">
+          <!-- Prediction results appear here -->
+        </div>
+      </div>
+
+      <!-- Method 3: Pipeline Inspector -->
+      <div class="test-method-panel" id="inspect-method" style="display: none;">
+        <div id="inspector-card">
+          <h3>🔬 Live Pipeline Inspector</h3>
+          <p class="step-description">See what the AI sees at each processing step</p>
+          <div class="inspector-strip" id="inspectorStrip">
+            <!-- Canvas panels will be rendered here -->
+          </div>
+          <div id="inspectorSub" style="margin-top: 12px; font-size: 0.85rem; color: #718096; text-align: center;">
+            Start Live Predictions to see processing steps
+          </div>
+        </div>
+      </div>
+
+      <!-- Prediction Display -->
+      <div id="predictionDisplay" style="margin-top: 24px; display: none;">
+        <h4 style="margin-bottom: 12px; font-size: 0.95rem; font-weight: 600; color: #475569;">Prediction Results</h4>
+        <div id="predictionBars">
+          <!-- Confidence bars will be rendered here -->
+        </div>
+        <div id="xaiToggleContainer" style="margin-top: 12px; display: none;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="xaiToggle" disabled>
+            <span style="font-size: 0.9rem; color: #475569;">👁️ Show Explainable AI Heatmap</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="step-actions">
+        <button class="btn btn-outline" id="step6-back">← Back</button>
+        <button class="btn btn-primary" id="step6-next">Next: Export & Deploy →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ STEP 7: Export & Deploy ═══════════════════════════ -->
+  <section class="workflow-step" data-step-panel="7">
+    <div class="step-header">
+      <div>
+        <h2>🚀 Step 7: Export & Deploy</h2>
+        <p class="step-description">Save your model and share it with the world</p>
+      </div>
+      <div class="step-badges">
+        <span class="step-status-badge" id="step7-status">Complete</span>
+      </div>
+    </div>
+
+    <div class="step-content">
+      <!-- Export Options -->
+      <div class="export-grid">
+        <div class="export-card">
+          <div class="export-icon">💾</div>
+          <h4>Download Model</h4>
+          <p>Save your trained model for offline use or local deployment</p>
+          <button class="btn btn-primary" id="exportBtn" disabled>📥 Download Model Files</button>
+        </div>
+
+        <div class="export-card">
+          <div class="export-icon">🔗</div>
+          <h4>Share Live Link</h4>
+          <p>Generate a sharable link for live predictions in the browser</p>
+          <button class="btn btn-primary" id="generateLinkBtn" disabled>🔗 Generate Live Link</button>
+          <div id="linkOutput" style="display:none; margin-top: 12px; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; font-size: 0.85rem; color: #475569; word-break: break-all;"></div>
+        </div>
+
+        <div class="export-card">
+          <div class="export-icon">📦</div>
+          <h4>Deployment Package</h4>
+          <p>Export as Docker container or cloud-ready bundle</p>
+          <button class="btn btn-secondary" id="deploymentPkgBtn" disabled>📦 Create Deployment Package</button>
+        </div>
+
+        <div class="export-card">
+          <div class="export-icon">📂</div>
+          <h4>Load Model</h4>
+          <p>Import a previously trained model to continue working</p>
+          <button class="btn btn-secondary" id="importModelBtn">📂 Load Model Files</button>
+          <input type="file" id="importFiles" multiple accept=".json,.bin" style="display:none;"/>
+        </div>
+      </div>
+
+      <!-- Model Metrics Summary -->
+      <div class="metrics-summary" id="modelMetrics" style="margin-top: 32px; display: none;">
+        <h3>📊 Model Summary</h3>
+        <div class="metrics-grid">
+          <div class="metric">
+            <span class="metric-label">Accuracy</span>
+            <span class="metric-value" id="metricAccuracy">—</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Training Time</span>
+            <span class="metric-value" id="metricTime">—</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Model Size</span>
+            <span class="metric-value" id="metricSize">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="step-actions">
+        <button class="btn btn-outline" id="step7-back">← Back</button>
+        <button class="btn btn-primary" id="step7-next" style="visibility: hidden;">
+          Next Step
+        </button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Hidden Elements for Compatibility -->
+<div style="display:none;">
+  <!-- Keep these for the ML system to use -->
+  <div id="preview-container" class="preview-container"></div>
+  <canvas id="timelineChart"></canvas>
+  <canvas id="lossChart"></canvas>
+  <canvas id="accChart"></canvas>
+  <div id="classes-wrap"></div>
+</div>
+
+<!-- Import Core Scripts -->
+<script type="module">
+  import { store } from './js/store.js';
+  import { workflowEngine, renderWorkflowUI } from './js/ui/workflow-engine.js';
+  
+  // Initialize workflow UI
+  renderWorkflowUI();
+  
+  // Setup step navigation
+  setupWorkflowNavigation();
+  
+  function setupWorkflowNavigation() {
+    // Step 1 → 2
+    document.getElementById('step1-next').addEventListener('click', () => {
+      workflowEngine.completeStep(1);
+      workflowEngine.goToStep(2);
+    });
+    
+    // Step 2
+    document.getElementById('step2-back').addEventListener('click', () => workflowEngine.goToStep(1));
+    document.getElementById('step2-next').addEventListener('click', () => {
+      workflowEngine.completeStep(2);
+      workflowEngine.goToStep(3);
+    });
+    
+    // Step 3
+    document.getElementById('step3-back').addEventListener('click', () => workflowEngine.goToStep(2));
+    document.getElementById('step3-next').addEventListener('click', () => {
+      workflowEngine.completeStep(3);
+      workflowEngine.goToStep(4);
+    });
+    
+    // Step 4
+    document.getElementById('step4-back').addEventListener('click', () => workflowEngine.goToStep(3));
+    document.getElementById('step4-next').addEventListener('click', () => {
+      workflowEngine.completeStep(4);
+      workflowEngine.goToStep(5);
+    });
+    
+    // Step 5
+    document.getElementById('step5-back').addEventListener('click', () => workflowEngine.goToStep(4));
+    document.getElementById('step5-next').addEventListener('click', () => {
+      workflowEngine.completeStep(5);
+      workflowEngine.goToStep(6);
+    });
+    
+    // Step 6
+    document.getElementById('step6-back').addEventListener('click', () => workflowEngine.goToStep(5));
+    document.getElementById('step6-next').addEventListener('click', () => {
+      workflowEngine.completeStep(6);
+      workflowEngine.goToStep(7);
+    });
+    
+    // Step 7
+    document.getElementById('step7-back').addEventListener('click', () => workflowEngine.goToStep(6));
+    
+    // Step indicator buttons
+    document.querySelectorAll('[data-step-btn]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const stepNum = parseInt(btn.dataset.stepBtn);
+        if (!btn.disabled) {
+          workflowEngine.goToStep(stepNum);
+        }
+      });
+    });
+  }
+</script>
+
+<!-- Import Main Application Script -->
+<script type="module" src="js/main.js"></script>
+
+</body>
+</html>
