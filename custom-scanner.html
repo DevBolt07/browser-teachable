@@ -223,6 +223,34 @@
       return myMetadata?.classes || [];
     }
 
+    // Autoload Logic for Studio Linking
+    window.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('source') === 'studio') {
+        showPhase(2);
+        try {
+          document.getElementById('loader-status').textContent = "Loading Base AI Vision Engine...";
+          myMobilenet = await mobilenet.load(); 
+          
+          document.getElementById('loader-status').textContent = "Loading Active Model from Studio...";
+          myModel = await tf.loadLayersModel('indexeddb://claimlens-active-model');
+          
+          const metaStr = localStorage.getItem('claimlens_active_model_metadata');
+          if (metaStr) {
+            myMetadata = normalizeMetadata(JSON.parse(metaStr));
+          } else {
+            const numClasses = myModel.outputShape[1];
+            myMetadata = { classes: Array.from({length: numClasses}, (_, i) => 'Class ' + (i+1)) };
+          }
+          
+          showPhase(3);
+        } catch (err) {
+          console.warn("Autoload failed, falling back to manual upload:", err);
+          showPhase(1);
+        }
+      }
+    });
+
     // Step 1: Load Model
     document.getElementById('btn-load-model').addEventListener('click', async () => {
       showPhase(2);
